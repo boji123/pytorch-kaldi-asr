@@ -368,7 +368,7 @@ open(Q, ">$queue_scriptfile") || die "Failed to write to $queue_scriptfile";
 
 print Q "#!/bin/bash\n";
 print Q "cd $cwd\n";
-#print Q "export PATH=\$HOME/dev/python3.6.5/bin:\$PATH\n";
+# important! set the user environment
 print Q "set -i\n";
 print Q ". ~/.bashrc\n";
 print Q "echo \$PATH\n";
