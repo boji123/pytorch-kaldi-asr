@@ -18,4 +18,4 @@ export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1"
 #----------------------------------------
 set -e # exit on error
 
-python3 test.py
+python3 print.py
