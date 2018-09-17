@@ -64,9 +64,19 @@ def save_vocab(vocab, vocab_file):
     print('[INFO] vocab_file is saved to {}.'.format(vocab_file))
 
 
-#replace the words by index readed from vocab file
-def apply_vocab(instances, vocab_file):
+#replace the words by index readed from vocab file, or reconstruct the word index by word
+def apply_vocab(instances, vocab_file, mode):
     word2idx = torch.load(vocab_file)
-    for key in instances:
-        instances[key] = [word2idx[word] if word in word2idx else constants.UNK for word in instances[key]]
-    return instances
+
+    if mode == 'word2idx':
+        for key in instances:
+            instances[key] = [word2idx[word] if word in word2idx else constants.UNK for word in instances[key]]
+        return instances
+    elif mode == 'idx2word':
+        idx2word = {index:word for word, index in word2idx.items()}
+        for key in instances:
+            instances[key] = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in instances[key]]
+        return instances
+    else:
+        print('[ERROR] invaldi mode string.')
+        exit(1)

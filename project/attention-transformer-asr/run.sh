@@ -18,5 +18,7 @@ export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1"
 #----------------------------------------
 set -e # exit on error
 
-python3 local/prepare_vocab.py -read_instances_file 'data/text' -save_vocab_file 'exp/vocab.torch'
+#python3 local/prepare_vocab.py -read_instances_file data/text -save_vocab_file exp/vocab.torch
+
+python3 test.py
 
