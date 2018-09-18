@@ -25,12 +25,27 @@ def test_vocab():
     print(instances['sw02053-B_020556-020891'])
 
 
+# a separate model initialization can split the parameter of model and trainning process,
+# and help to improve the flexibility
+def test_init_model():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-read_instances_file', required=True)
+    parser.add_argument('-save_vocab_file', required=True)
+    parser.add_argument('-min_word_count', type=int, default=0)
+    opt = parser.parse_args()
+    return
+
+
 #simulating the parameter passing
 def set_arg(arg_list):
     sys.argv = [sys.argv[0]]
     for arg in arg_list:
         sys.argv.append(arg)
 
+
 if __name__ == '__main__':
-    set_arg("-read_instances_file data/text -save_vocab_file exp/vocab.torch".split())
-    test_vocab()
+    #set_arg("-read_instances_file data/text -save_vocab_file exp/vocab.torch".split())
+    #test_vocab()
+    
+    set_arg("")
+    test_init_model()
