@@ -29,7 +29,30 @@ else
     exit 1
 fi
 
+stage=99
+if [ $stage -le 0 ]; then
+    python3 local/prepare_vocab.py -read_instances_file data/text -save_vocab_file exp/vocab.torch
+fi
 
-#python3 local/prepare_vocab.py -read_instances_file data/text -save_vocab_file exp/vocab.torch
+if [ $stage -le 1 ]; then
+    python3 local/initialize_model.py \
+            -read_feats_scp_file data/feats.scp \
+            -read_vocab_file exp/vocab.torch \
+            -max_token_seq_len 50 \
+            \
+            -n_layers 6 \
+            -n_head 8 \
+            -d_word_vec 512 \
+            -d_model 512 \
+            -d_inner_hid 1024 \
+            -d_k 64 \
+            -d_v 64 \
+            -dropout 0.1 \
+            \
+            -save_model_file exp/model.init
+fi
 
-python3 test.py
+if [ $stage -eq 99 ]; then 
+    python3 test.py
+    exit 0
+fi

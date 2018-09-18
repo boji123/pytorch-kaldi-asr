@@ -1,37 +1,13 @@
-# a test file script, leaved by the developer
-# maybe helpful when building your own project.
-import sys
+# a separate model initialization can split the parameter of model and trainning process,
+# and help to improve the flexibility
+# [to be done] should be able to convert kaldi nnet3 model into pytorch format?
 
 import argparse
-from utils import instances_handler
 import kaldi_io
 import torch
 from transformer.Models import Transformer
 
-def test_vocab():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-read_instances_file', required=True)
-    parser.add_argument('-save_vocab_file', required=True)
-    parser.add_argument('-min_word_count', type=int, default=0)
-    opt = parser.parse_args()
-
-    print('--------------------[PROCEDURE]--------------------')
-    print('[PROCEDURE] preparing vocabulary for output label')
-    instances = instances_handler.read_instances(opt.read_instances_file)
-    vocab = instances_handler.build_vocab(instances)
-    instances_handler.save_vocab(vocab, opt.save_vocab_file)
-
-    print(instances['sw02053-B_020556-020891'])
-    instances_index = instances_handler.apply_vocab(instances, opt.save_vocab_file, 'word2idx')
-    print(instances_index['sw02053-B_020556-020891'])
-    instances = instances_handler.apply_vocab(instances_index, opt.save_vocab_file, 'idx2word')
-    print(instances['sw02053-B_020556-020891'])
-
-
-# a separate model initialization can split the parameter of model and trainning process,
-# and help to improve the flexibility
-# [to be done] should be able to convert kaldi nnet3 model into pytorch format?
-def test_init_model():
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-read_feats_scp_file', required=True)
     parser.add_argument('-read_vocab_file', required=True)
@@ -91,36 +67,6 @@ def test_init_model():
     #model = checkpoint['model']
     print('[INFO] initialized model is saved to {}.'.format(opt.save_model_file))
 
-#simulating the parameter passing
-def set_arg(command):
-    arg_list = command.split()
-    sys.argv = [sys.argv[0]]
-    for arg in arg_list:
-        sys.argv.append(arg)
-
 
 if __name__ == '__main__':
-#-----------------------------------------------------------------------------
-    #set_arg("-read_instances_file data/text -save_vocab_file exp/vocab.torch")
-    #test_vocab()
-#-----------------------------------------------------------------------------
-    #exit(0)
-    command = "\
-        -read_feats_scp_file data/feats.scp \
-        -read_vocab_file exp/vocab.torch \
-        -max_token_seq_len 50 \
-        \
-        -n_layers 6 \
-        -n_head 8 \
-        -d_word_vec 512 \
-        -d_model 512 \
-        -d_inner_hid 1024 \
-        -d_k 64 \
-        -d_v 64 \
-        -dropout 0.1 \
-        \
-        -save_model_file exp/model.init"
-
-    set_arg(command)
-    test_init_model()
-#-----------------------------------------------------------------------------
+    main()
