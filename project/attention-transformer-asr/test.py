@@ -7,6 +7,8 @@ from utils import instances_handler
 import kaldi_io
 import torch
 from transformer.Models import Transformer
+from utils.BatchLoader import BatchLoader
+
 
 def test_vocab():
     parser = argparse.ArgumentParser()
@@ -86,7 +88,7 @@ def test_init_model():
         'epoch': 0}
 
     torch.save(checkpoint, opt.save_model_file)
-    #can be readed by:
+    #can be read by:
     #checkpoint = torch.load(opt.save_model_file)
     #model = checkpoint['model']
     print('[INFO] initialized model is saved to {}.'.format(opt.save_model_file))
@@ -104,7 +106,7 @@ if __name__ == '__main__':
     #set_arg("-read_instances_file data/text -save_vocab_file exp/vocab.torch")
     #test_vocab()
 #-----------------------------------------------------------------------------
-    #exit(0)
+    '''
     command = "\
         -read_feats_scp_file data/feats.scp \
         -read_vocab_file exp/vocab.torch \
@@ -123,4 +125,11 @@ if __name__ == '__main__':
 
     set_arg(command)
     test_init_model()
+    '''
 #-----------------------------------------------------------------------------
+    command = "\
+        -read_feats_scp_file data/feats.scp \
+        -read_text_file data/text \
+        -read_vocab_file exp/vocab.torch"
+    set_arg(command)
+    train()

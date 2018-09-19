@@ -68,15 +68,17 @@ def save_vocab(vocab, vocab_file):
 def apply_vocab(instances, vocab_file, mode):
     word2idx = torch.load(vocab_file)
 
+    applied = {}
     if mode == 'word2idx':
         for key in instances:
-            instances[key] = [word2idx[word] if word in word2idx else constants.UNK for word in instances[key]]
-        return instances
+            applied[key] = [word2idx[word] if word in word2idx else constants.UNK for word in instances[key]]
     elif mode == 'idx2word':
         idx2word = {index:word for word, index in word2idx.items()}
         for key in instances:
-            instances[key] = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in instances[key]]
-        return instances
+            applied[key] = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in instances[key]]
     else:
         print('[ERROR] invaldi mode string.')
         exit(1)
+
+    print('[INFO] vocab with {} words is applied to label, vocab file is {}.'.format(len(word2idx), vocab_file))
+    return applied
