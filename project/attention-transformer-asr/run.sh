@@ -60,7 +60,7 @@ if [ $stage -eq 99 ]; then
     python3 local/train.py \
         -read_feats_scp_file data/feats.scp \
         -read_text_file data/text \
-        -read_vocab_file exp/vocab.torch
-        
+        -read_vocab_file exp/vocab.torch \
+        -load_model_file exp/model.init
     exit 0
 fi

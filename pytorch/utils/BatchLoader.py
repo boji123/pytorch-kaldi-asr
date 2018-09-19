@@ -2,6 +2,7 @@ import kaldi_io
 import random
 
 #one should zipped the trainning source and target befor handled by batch loader
+#batch loader is a iterator, can be call by for loop
 class BatchLoader():
     #triples: list of tuple (key, path of utterances, label)
     #feats will be loaded when itering the batch.
