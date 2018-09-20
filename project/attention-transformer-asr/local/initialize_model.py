@@ -58,7 +58,7 @@ def main():
 
     checkpoint = {
         'model': model,
-        'options': opt,
+        'model_options': opt,
         'epoch': 0}
 
     torch.save(checkpoint, opt.save_model_file)

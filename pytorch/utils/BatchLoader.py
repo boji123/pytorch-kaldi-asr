@@ -1,5 +1,7 @@
 import kaldi_io
 import random
+import time
+
 
 #one should zipped the trainning source and target befor handled by batch loader
 #batch loader is a iterator, can be call by for loop
@@ -17,14 +19,6 @@ class BatchLoader():
             print('[INFO] loader initialized. data size:{}, batch_size:{}, batch per iter:{}.'
                 .format(len(self.trainning_triples), self.batch_size, self.num_batch))
 
-    def __iter__(self):
-        self.curr_iter = 0
-        random.shuffle(self.trainning_triples)
-
-        if self.print_info:
-            print('[INFO] script list is shuffled')
-        return self
-
     def load_batch_data(self, start, end):
         batch = []
         for triples in self.trainning_triples[start:end]:
@@ -33,6 +27,14 @@ class BatchLoader():
             batch.append(triples)
         return batch
 
+    def __iter__(self):
+        self.curr_iter = 0
+        random.shuffle(self.trainning_triples)
+
+        if self.print_info:
+            print('[INFO] script list is shuffled')
+        return self
+
     def __next__(self):
         if self.curr_iter < self.num_batch:
             start = self.curr_iter * self.batch_size
@@ -40,10 +42,10 @@ class BatchLoader():
             self.curr_iter += 1
 
             #should make a data validation here
+            start_time = time.time()
             batch = self.load_batch_data(start, end)
-
             if self.print_info:
-                print('[INFO] iter {}: data loaded.'.format(self.curr_iter))
+                print('[INFO] iter {}: data loaded. loading cost {:3.2f} seconds'.format(self.curr_iter, time.time() - start_time))
             return batch
         else:
             #will ignore the rest of data

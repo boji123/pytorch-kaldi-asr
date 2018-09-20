@@ -1,7 +1,7 @@
 #handling the instance text, generete a dict and return the instance
-
 import torch
 from utils import constants
+import numpy as np
 
 # read the instance into a {key:value} dict
 def read_instances(instance_file, language='english'):
@@ -71,7 +71,7 @@ def apply_vocab(instances, vocab_file, mode):
     applied = {}
     if mode == 'word2idx':
         for key in instances:
-            applied[key] = [word2idx[word] if word in word2idx else constants.UNK for word in instances[key]]
+            applied[key] = np.array([word2idx[word] if word in word2idx else constants.UNK for word in instances[key]])
     elif mode == 'idx2word':
         idx2word = {index:word for word, index in word2idx.items()}
         for key in instances:
@@ -82,3 +82,36 @@ def apply_vocab(instances, vocab_file, mode):
 
     print('[INFO] vocab with {} words is applied to label, vocab file is {}.'.format(len(word2idx), vocab_file))
     return applied
+
+
+#add BOS and EOS to the instances index
+def add_control_words_index(instances_index):
+    for key in instances_index:
+        #add two control words
+        instances_index[key] = np.array([constants.BOS] + instances_index[key] + [constants.EOS])
+    return instances_index
+
+
+#pad instances to the longest one, making instances to same length
+#so then they can be trained parallely
+#should ensure that instances is array of numpy format
+#etc: [array(...), array(...)] -> array[[...],[...]]
+#it can used to pad both 2-d or 1-d array
+def pad_to_longest(instances):
+    max_len = max(len(instance) for instance in instances)
+    dim = len(instances[0].shape)
+
+    inst_data = []
+    for instance in instances:
+        pad_length = max_len - len(instance)
+        if dim == 1: #usually label
+            instance = np.pad(instance, (0,pad_length), 'constant', constant_values = (0,constants.PAD))
+        elif dim == 2: #usually feature
+            instance = np.pad(instance, ((0,pad_length),(0,0)), 'constant', constant_values = ((0,constants.PAD),(0,0)))
+        else:
+            print('[ERROR] undefined padding shape')
+            exit(0)
+        inst_data.append(instance)
+
+    inst_data = np.array(inst_data)
+    return inst_data

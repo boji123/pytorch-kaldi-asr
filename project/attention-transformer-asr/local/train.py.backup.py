@@ -296,10 +296,8 @@ def main():
 
     crit = get_criterion(training_data.tgt_vocab_size)
 
-    if opt.cuda:
-        transformer = transformer.cuda() #opt.gpu_device_ids[0]
-        #transformer = DataParallel(transformer, device_ids=opt.gpu_device_ids)
-        crit = crit.cuda() #opt.gpu_device_ids[0]
+    transformer = transformer.cuda()
+    crit = crit.cuda()
 
     train(transformer, training_data, validation_data, crit, optimizer, opt)
 
