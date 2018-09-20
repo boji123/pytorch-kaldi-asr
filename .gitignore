@@ -1,6 +1,7 @@
 # user files
 data/
 exp/
+*.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
