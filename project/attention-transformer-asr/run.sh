@@ -29,7 +29,7 @@ else
     exit 1
 fi
 
-stage=2
+stage=1
 if [ $stage -le 0 ]; then
     python3 local/prepare_vocab.py -read_instances_file data/text.maxlen_500 -save_vocab_file exp/vocab.torch
 fi
@@ -41,11 +41,10 @@ if [ $stage -le 1 ]; then
         -read_vocab_file exp/vocab.torch \
         -max_token_seq_len 50 \
         \
-        -n_layers 6 \
-        -n_head 8 \
-        -d_word_vec 512 \
+        -n_layers 4 \
+        -n_head 6 \
         -d_model 512 \
-        -d_inner_hid 1024 \
+        -d_inner_hid 512 \
         -d_k 64 \
         -d_v 64 \
         -dropout 0.1 \

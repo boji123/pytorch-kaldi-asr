@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 from transformer.Models import Transformer
 from transformer.Optim import ScheduledOptim
-
+from torch.autograd import Variable
 
 def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file, batch_size):
     utterances = {}
@@ -55,6 +55,7 @@ def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file
 
 
 def get_performance(crit, pred, goal, smoothing=False, num_class=None):
+    #to be done here
     ''' Apply label smoothing if needed '''
 
     # TODO: Add smoothing
@@ -63,7 +64,7 @@ def get_performance(crit, pred, goal, smoothing=False, num_class=None):
         eps = 0.1
         goal = goal * (1 - eps) + (1 - goal) * eps / num_class
         raise NotImplementedError
-
+        #seq_logit.view(-1, seq_logit.size(2))
     loss = crit(pred, goal.contiguous().view(-1))
     pred = pred.max(1)[1]
 
@@ -90,19 +91,28 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train'):
         #key = [triples[0] for triples in batch]
         src = [triples[1] for triples in batch]
         tgt = [triples[2] for triples in batch]
-        src = instances_handler.pad_to_longest(src)
-        tgt = instances_handler.pad_to_longest(tgt)
-        # loading batch will cost about 2 second (average speed, under batchsize 512)
-        # and padding batch will cost about 0.2 second, io is really time-spending
+        src_seq, src_pad_mask = instances_handler.pad_to_longest(src)
+        tgt_seq, tgt_pad_mask = instances_handler.pad_to_longest(tgt)
+
+        src_seq = Variable(torch.FloatTensor(src_seq)) #batch * max length in batch * padded feature dim
+        src_pad_mask = Variable(torch.LongTensor(src_pad_mask)) #batch * maxlength in batch * bool mask dim
+        tgt_seq = Variable(torch.LongTensor(tgt_seq)) #batch * max length in batch * padded index dim
+        tgt_pad_mask = Variable(torch.LongTensor(tgt_pad_mask)) #batch * maxlength in batch * bool mask dim
+
+        goal = tgt_seq[:, 1:]
+        tgt_seq = tgt_seq[:, :-1]
+        tgt_pad_mask = tgt_pad_mask[:, :-1]
+
+        # loading batch will cost about 1.8 second (average speed, under batchsize 512)
+        # and padding batch will cost about 0.3 second, thus io is really time-spending
 
         # forward
         if mode == 'train':
             optimizer.zero_grad()
 
-        exit(0)
-        pred = model(src, tgt)
+        pred = model(src_seq, src_pad_mask, tgt_seq, tgt_pad_mask)
         loss, n_correct = get_performance(crit, pred, goal)
-        
+        exit(0)
         if mode == 'train':
             loss.backward()
             # update parameters
@@ -162,7 +172,7 @@ def main():
     #if continue trainning, curr_epoch should be model.epoch + 1
     parser.add_argument('-curr_epoch', type=int, default=1)
 
-    parser.add_argument('-batch_size', type=int, default=512)
+    parser.add_argument('-batch_size', type=int, default=64)
     parser.add_argument('-gpu_device_ids', type=str, default='0')
 
     parser.add_argument('-save_model_perfix', required=True)

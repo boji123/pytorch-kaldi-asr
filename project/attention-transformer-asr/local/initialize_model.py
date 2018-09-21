@@ -15,7 +15,6 @@ def main():
 
     parser.add_argument('-n_layers', type=int, default=6)
     parser.add_argument('-n_head', type=int, default=8)
-    parser.add_argument('-d_word_vec', type=int, default=512)
     parser.add_argument('-d_model', type=int, default=512)
     parser.add_argument('-d_inner_hid', type=int, default=1024)
     parser.add_argument('-d_k', type=int, default=64)
@@ -36,18 +35,17 @@ def main():
     print('[INFO] get feature of dimension {} from {}.'.format(opt.src_dim, opt.read_feats_scp_file))
 
     word2idx = torch.load(opt.read_vocab_file)
-    opt.tgt_dim = len(word2idx)
-    print('[INFO] get label of dimension {} from {}.'.format(opt.tgt_dim, opt.read_vocab_file))
+    opt.tgt_vocab_dim = len(word2idx)
+    print('[INFO] get label of dimension {} from {}.'.format(opt.tgt_vocab_dim, opt.read_vocab_file))
 
     print('[INFO] model will initialized with add_argument:\n{}.'.format(opt))
 
     model = Transformer(
         opt.src_dim,
-        opt.tgt_dim,
+        opt.tgt_vocab_dim,
         opt.max_token_seq_len,
         n_layers=opt.n_layers,
         n_head=opt.n_head,
-        d_word_vec=opt.d_word_vec,
         d_model=opt.d_model,
         d_inner_hid=opt.d_inner_hid,
         d_k=opt.d_k,

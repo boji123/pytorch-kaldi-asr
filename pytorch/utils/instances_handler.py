@@ -102,8 +102,13 @@ def pad_to_longest(instances):
     dim = len(instances[0].shape)
 
     inst_data = []
+    pad_masks = []
     for instance in instances:
         pad_length = max_len - len(instance)
+        pad_mask = np.ones(len(instance))
+        pad_mask = np.pad(pad_mask, (0,pad_length), 'constant', constant_values = (0,constants.PAD))
+        pad_masks.append(pad_mask)
+
         if dim == 1: #usually label
             instance = np.pad(instance, (0,pad_length), 'constant', constant_values = (0,constants.PAD))
         elif dim == 2: #usually feature
@@ -113,5 +118,7 @@ def pad_to_longest(instances):
             exit(0)
         inst_data.append(instance)
 
+    pad_masks = np.array(pad_masks, dtype=int)
     inst_data = np.array(inst_data)
-    return inst_data
+
+    return inst_data, pad_masks
