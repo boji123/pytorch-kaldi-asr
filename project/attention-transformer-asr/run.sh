@@ -44,12 +44,12 @@ if [ $stage -le 1 ]; then
 fi
 
 if [ $stage -le 2 ]; then
-    $cuda_cmd train.log CUDA_VISIBLE_DEVICES=3 python3 local/train.py \
+    $cuda_cmd train.log CUDA_VISIBLE_DEVICES=3 python3 -u local/train.py \
         -read_feats_scp_file data/feats.maxlen_500.scp \
         -read_text_file data/text.maxlen_500 \
         -read_vocab_file exp/vocab.torch \
         -load_model_file exp/model.init.torch \
-        -batch_size 10 \
+        -batch_size 16 \
         -save_model_perfix exp/model \
         -use_gpu
 fi
