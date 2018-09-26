@@ -3,20 +3,11 @@
 #edited by baiji
 #an example for pytorch training
 #------------------------------------------------------------
-#--------------------        path        --------------------
-MY_PYTORCH_KALDI_DIR=$HOME/work/pytorch-kaldi-asr
-export PATH=$MY_PYTORCH_KALDI_DIR:$MY_PYTORCH_KALDI_DIR/kaldi:$MY_PYTORCH_KALDI_DIR/pytorch:$PATH
-export PYTHONPATH=$MY_PYTORCH_KALDI_DIR/kaldi:$MY_PYTORCH_KALDI_DIR/pytorch:$PYTHONPATH
-#if a user want to change a file in the library, just copy it to the local directory.
-#the program will search local first
-USER_EDITED_LIBRARY=`pwd`/local
-export PATH=$USER_EDITED_LIBRARY:$USER_EDITED_LIBRARY/kaldi:$USER_EDITED_LIBRARY/pytorch:$PATH
-export PYTHONPATH=$USER_EDITED_LIBRARY/kaldi:$USER_EDITED_LIBRARY/pytorch:$PYTHONPATH
 #--------------------    trainning cmd   --------------------
-export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
-export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1"
-#------------------------------------------------------------
+export train_cmd="./queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
+export cuda_cmd="./queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
+export cuda_cmd="./queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1"
+. ./path.sh
 set -e # exit on error
 #------------------------------------------------------------
 
@@ -29,7 +20,7 @@ else
     exit 1
 fi
 
-stage=1
+stage=0
 if [ $stage -le 0 ]; then
     python3 local/prepare_vocab.py -read_instances_file data/text.maxlen_500 -save_vocab_file exp/vocab.torch
 fi
@@ -53,10 +44,12 @@ if [ $stage -le 1 ]; then
 fi
 
 if [ $stage -le 2 ]; then
-    python3 local/train.py \
+    $cuda_cmd train.log CUDA_VISIBLE_DEVICES=3 python3 local/train.py \
         -read_feats_scp_file data/feats.maxlen_500.scp \
         -read_text_file data/text.maxlen_500 \
         -read_vocab_file exp/vocab.torch \
         -load_model_file exp/model.init.torch \
-        -save_model_perfix exp/model
+        -batch_size 10 \
+        -save_model_perfix exp/model \
+        -use_gpu
 fi
