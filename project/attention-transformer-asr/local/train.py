@@ -140,6 +140,7 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
 
 
 def train(model, train_data, eval_data, crit, optimizer, opt, model_options):
+    valid_accus = []
     for epoch in range(opt.curr_epoch, opt.epoch + 1):
         print('[INFO] trainning epoch {}.'.format(epoch))
 
