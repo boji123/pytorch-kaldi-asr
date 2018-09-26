@@ -55,9 +55,7 @@ def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file
 
 
 def get_performance(crit, pred, goal, smoothing=False, num_class=None):
-    #to be done here
-    ''' Apply label smoothing if needed '''
-
+    '''
     # TODO: Add smoothing
     if smoothing:
         assert bool(num_class)
@@ -65,10 +63,17 @@ def get_performance(crit, pred, goal, smoothing=False, num_class=None):
         goal = goal * (1 - eps) + (1 - goal) * eps / num_class
         raise NotImplementedError
         #seq_logit.view(-1, seq_logit.size(2))
-    loss = crit(pred, goal.contiguous().view(-1))
-    pred = pred.max(1)[1]
+    '''
 
+    #to be done here
+    ''' Apply label smoothing if needed '''
+    # batch * length * 
+    pred = pred.contiguous().view(-1,pred.size()[2])
     goal = goal.contiguous().view(-1)
+
+    loss = crit(pred, goal)
+
+    pred = pred.max(1)[1]
     n_correct = pred.data.eq(goal.data)
     n_correct = n_correct.masked_select(goal.ne(constants.PAD).data).sum()
 
@@ -112,7 +117,7 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train'):
 
         pred = model(src_seq, src_pad_mask, tgt_seq, tgt_pad_mask)
         loss, n_correct = get_performance(crit, pred, goal)
-        exit(0)
+
         if mode == 'train':
             loss.backward()
             # update parameters
@@ -124,8 +129,7 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train'):
         n_total_words += n_words
         n_total_correct += n_correct
         total_loss += loss.data[0]
-
-    return 55.5, 80
+        print('[INFO] loss:{}'.format(loss.data))
     return total_loss/n_total_words, n_total_correct/n_total_words
 
 

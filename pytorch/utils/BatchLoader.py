@@ -16,7 +16,7 @@ class BatchLoader():
         self.print_info = print_info
 
         if self.print_info:
-            print('[INFO] loader initialized. data size:{}, batch_size:{}, batch per iter:{}.'
+            print('[INFO] loader initialized. data size:{}, batch_size:{}, iter per epoch:{}.'
                 .format(len(self.trainning_triples), self.batch_size, self.num_batch))
 
     def load_batch_data(self, start, end):
