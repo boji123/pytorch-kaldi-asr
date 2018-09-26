@@ -85,10 +85,10 @@ def apply_vocab(instances, vocab_file, mode):
 
 
 #add BOS and EOS to the instances index
-def add_control_words_index(instances_index):
+def add_control_words(instances_index):
     for key in instances_index:
         #add two control words
-        instances_index[key] = np.array([constants.BOS] + instances_index[key] + [constants.EOS])
+        instances_index[key] = np.array([constants.BOS_WORD] + instances_index[key] + [constants.EOS_WORD])
     return instances_index
 
 

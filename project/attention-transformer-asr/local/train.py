@@ -36,9 +36,9 @@ def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file
             label_text[key] = text
     print('[INFO] get {} labels from {}.'.format(len(label_text), read_text_file))
 
-    label = instances_handler.apply_vocab(label_text, read_vocab_file, 'word2idx')
     #begin & end of sequence
-    label = instances_handler.add_control_words_index(label)
+    label_text = instances_handler.add_control_words(label_text)
+    label = instances_handler.apply_vocab(label_text, read_vocab_file, 'word2idx')
 
     #connect the label and utterances
     trainning_triples = []
@@ -80,7 +80,7 @@ def get_performance(crit, pred, goal, smoothing=False, num_class=None):
     return loss, n_correct
 
 
-def train_epoch(model, batch_loader, crit, optimizer, mode = 'train'):
+def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = False):
     if mode == 'train':
         model.train()
     elif mode == 'eval':
@@ -103,6 +103,12 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train'):
         src_pad_mask = Variable(torch.LongTensor(src_pad_mask)) #batch * maxlength in batch * bool mask dim
         tgt_seq = Variable(torch.LongTensor(tgt_seq)) #batch * max length in batch * padded index dim
         tgt_pad_mask = Variable(torch.LongTensor(tgt_pad_mask)) #batch * maxlength in batch * bool mask dim
+
+        if use_gpu:
+            src_seq = src_seq.cuda()
+            src_pad_mask = src_pad_mask.cuda()
+            tgt_seq = tgt_seq.cuda()
+            tgt_pad_mask = tgt_pad_mask.cuda()
 
         goal = tgt_seq[:, 1:]
         tgt_seq = tgt_seq[:, :-1]
@@ -138,12 +144,12 @@ def train(model, train_data, eval_data, crit, optimizer, opt, model_options):
         print('[INFO] trainning epoch {}.'.format(epoch))
 
         start = time.time()
-        train_loss, train_accu = train_epoch(model, train_data, crit, optimizer)
+        train_loss, train_accu = train_epoch(model, train_data, crit, optimizer, mode = 'train', use_gpu = opt.use_gpu)
         print('[INFO]-----(Training)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(train_loss, 100)), 100*train_accu, (time.time()-start)/60))
 
         start = time.time()
-        valid_loss, valid_accu = train_epoch(model, eval_data, crit, optimizer, 'eval')
+        valid_loss, valid_accu = train_epoch(model, eval_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
         print('[INFO]-----(Validation)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
 
@@ -177,9 +183,9 @@ def main():
     parser.add_argument('-curr_epoch', type=int, default=1)
 
     parser.add_argument('-batch_size', type=int, default=64)
-    parser.add_argument('-gpu_device_ids', type=str, default='0')
 
     parser.add_argument('-save_model_perfix', required=True)
+    parser.add_argument('-use_gpu', action='store_true')
     opt = parser.parse_args()
 
 
@@ -218,7 +224,10 @@ def main():
 
     print('--------------------[PROCEDURE]--------------------')
     print('[PROCEDURE] trainning start...')
-    train(model, train_data, eval_data, crit, optimizer, opt, model_options)
+    if opt.use_gpu:
+        train(model.cuda(), train_data, eval_data, crit.cuda(), optimizer, opt, model_options)
+    else:
+        train(model, train_data, eval_data, crit, optimizer, opt, model_options)
 
 
 if __name__ == '__main__':
