@@ -32,10 +32,10 @@ if [ $stage -le 1 ]; then
         -read_vocab_file exp/vocab.torch \
         -max_token_seq_len 50 \
         \
-        -n_layers 4 \
-        -n_head 6 \
-        -d_model 512 \
-        -d_inner_hid 512 \
+        -n_layers 3 \
+        -n_head 4 \
+        -d_model 256 \
+        -d_inner_hid 256 \
         -d_k 64 \
         -d_v 64 \
         -dropout 0.1 \
@@ -44,12 +44,15 @@ if [ $stage -le 1 ]; then
 fi
 
 if [ $stage -le 2 ]; then
+    echo '[PROCEDURE]trainning start... log is in train.log'
     $cuda_cmd train.log CUDA_VISIBLE_DEVICES=3 python3 -u local/train.py \
         -read_feats_scp_file data/feats.maxlen_500.scp \
         -read_text_file data/text.maxlen_500 \
         -read_vocab_file exp/vocab.torch \
         -load_model_file exp/model.init.torch \
-        -batch_size 16 \
+        -epoch 50 \
+        -batch_size 32 \
         -save_model_perfix exp/model \
         -use_gpu
+    echo '[INFO]trainning finish.'
 fi

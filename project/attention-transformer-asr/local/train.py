@@ -50,7 +50,7 @@ def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file
 
     #in batch loader, trainning feature will be loaded while itering
     #it increase io but decrease memory use
-    batch_loader = BatchLoader(trainning_triples, batch_size)
+    batch_loader = BatchLoader(trainning_triples, batch_size, print_info = False)
     return batch_loader
 
 
@@ -65,9 +65,7 @@ def get_performance(crit, pred, goal, smoothing=False, num_class=None):
         #seq_logit.view(-1, seq_logit.size(2))
     '''
 
-    #to be done here
-    ''' Apply label smoothing if needed '''
-    # batch * length * 
+    # batch * length * vocab
     pred = pred.contiguous().view(-1,pred.size()[2])
     goal = goal.contiguous().view(-1)
 
@@ -91,7 +89,8 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
     n_total_words = 0
     n_total_correct = 0
 
-    for batch in tqdm(batch_loader, mininterval=2, desc=' ({}) '.format(mode), leave=False):
+
+    for batch in tqdm(batch_loader, mininterval=2, desc='({})'.format(mode)):
         # prepare data
         #key = [triples[0] for triples in batch]
         src = [triples[1] for triples in batch]
@@ -135,7 +134,7 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
         n_total_words += n_words
         n_total_correct += n_correct
         total_loss += loss.data[0]
-        print('[INFO] loss:{}'.format(loss.data))
+
     return total_loss/n_total_words, n_total_correct/n_total_words
 
 
@@ -163,11 +162,6 @@ def train(model, train_data, eval_data, crit, optimizer, opt, model_options):
         valid_accus += [valid_accu]
         model_name = opt.save_model_perfix + '.epoch{}.accu_{:3.2f}.torch'.format(epoch, 100*valid_accu)
         torch.save(checkpoint, model_name)
-
-        model_name = opt.save_model + '.best.accu_{:3.2f}.torch'.format(100*valid_accu)
-        if valid_accu >= max(valid_accus):
-            torch.save(checkpoint, model_name)
-            print('[Info] The best model has been updated.')
 
 
 def main():
@@ -216,11 +210,8 @@ def main():
 
 
     optimizer = ScheduledOptim(
-        optim.Adam(
-            #model.get_trainable_parameters(),
-            filter(lambda p: p.requires_grad,model.get_trainable_parameters()),
-            betas=(0.9, 0.98), eps=1e-09),
-        model_options.d_model, opt.n_warmup_steps)
+        optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-09),
+        model_options.d_model * 2, opt.n_warmup_steps)
     print('[INFO] using adam as optimizer.')
 
     print('--------------------[PROCEDURE]--------------------')
