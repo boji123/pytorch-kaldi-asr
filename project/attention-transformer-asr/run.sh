@@ -4,13 +4,14 @@
 #an example for pytorch training
 #------------------------------------------------------------
 #--------------------    trainning cmd   --------------------
-export train_cmd="./queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
-export cuda_cmd="./queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="./queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1"
 . ./path.sh
+#queue.pl is in pytorch-kaldi-asr/kaldi
+#it is edited to adapt the project path around line 373
+export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
+export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1"
 set -e # exit on error
 #------------------------------------------------------------
-
 
 #notice: step of data preparation here is done by kaldi, so I just copy the data files to data/
 if [ -d data ]&&[ -f data/feats.maxlen_500.scp ]&&[ -f data/text.maxlen_500 ]; then

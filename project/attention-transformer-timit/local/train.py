@@ -184,9 +184,7 @@ def main():
     opt = parser.parse_args()
 
 
-    print('--------------------[PROCEDURE]--------------------')
     print('[PROCEDURE] prepare trainning.')
-
 
     train_data = initialize_batch_loader(opt.read_feats_scp_file, opt.read_text_file, opt.read_vocab_file, opt.batch_size)
     eval_data = initialize_batch_loader(opt.read_feats_scp_file, opt.read_text_file, opt.read_vocab_file, opt.batch_size)
@@ -214,12 +212,11 @@ def main():
         model_options.d_model * 2, opt.n_warmup_steps)
     print('[INFO] using adam as optimizer.')
 
-    print('--------------------[PROCEDURE]--------------------')
     print('[PROCEDURE] trainning start...')
     if opt.use_gpu:
-        train(model.cuda(), train_data, eval_data, crit.cuda(), optimizer, opt, model_options)
-    else:
-        train(model, train_data, eval_data, crit, optimizer, opt, model_options)
+        model = model.cuda()
+        crit = crit.cuda()
+    train(model, train_data, eval_data, crit, optimizer, opt, model_options)
 
 
 if __name__ == '__main__':

@@ -25,9 +25,7 @@ def main():
 
     parser.add_argument('-save_model_file', required=True)
     opt = parser.parse_args()
-
-    print('--------------------[PROCEDURE]--------------------')
-    print('[PROCEDURE] reading dimension from data file and initialize the model')
+    
 
     for key,matrix in kaldi_io.read_mat_scp(opt.read_feats_scp_file):
         opt.src_dim = matrix.shape[1]

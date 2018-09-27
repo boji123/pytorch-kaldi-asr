@@ -10,8 +10,6 @@ def main():
     parser.add_argument('-min_word_count', type=int, default=0)
     opt = parser.parse_args()
 
-    print('--------------------[PROCEDURE]--------------------')
-    print('[PROCEDURE] preparing vocabulary for output label')
     instances = instances_handler.read_instances(opt.read_instances_file)
     vocab = instances_handler.build_vocab(instances)
     instances_handler.save_vocab(vocab, opt.save_vocab_file)
