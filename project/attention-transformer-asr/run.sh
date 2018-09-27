@@ -20,7 +20,7 @@ else
     echo '[ERROR] requir file not founded, please check your directory'
     exit 1
 fi
-
+mkdir -p exp
 stage=0
 if [ $stage -le 0 ]; then
     python3 local/prepare_vocab.py -read_instances_file data/text.maxlen_500 -save_vocab_file exp/vocab.torch
