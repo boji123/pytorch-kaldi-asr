@@ -5,5 +5,16 @@
 kaldi-io库github地址：https://github.com/vesis84/kaldi-io-for-python
 安装kaldi-io后记得在kaldi_io.py里设置kaldi路径以便添加环境变量
 
+为系统添加kaldi的环境变量以便调用kaldi的代码：
+```
+vim ~/.bashrc
+```
+然后在里面输入
+```
+#kaldi
+export KALDI_ROOT=$HOME/my_kaldi_root
+. $KALDI_ROOT/tools/config/common_path.sh
+```
+
 要创建自己的项目，请进入project目录，拷贝一份example_project
 里面的run.sh会指导你如何使用该项目的脚本
