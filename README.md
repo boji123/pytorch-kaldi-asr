@@ -3,7 +3,6 @@
 需要使用kaldi-io-for-python这一胶水库，把kaldi里的数据文件读取python。
 
 kaldi-io库github地址：https://github.com/vesis84/kaldi-io-for-python
-安装kaldi-io后记得在kaldi_io.py里设置kaldi路径以便添加环境变量
 
 为系统添加kaldi的环境变量以便调用kaldi的代码：
 ```
@@ -15,6 +14,7 @@ vim ~/.bashrc
 export KALDI_ROOT=$HOME/my_kaldi_root
 . $KALDI_ROOT/tools/config/common_path.sh
 ```
+这里的KALDI_ROOT将会提供给kaldi io以及本项目调用kaldi中的文件
 
 要创建自己的项目，请进入project目录，拷贝一份example_project
 里面的run.sh会指导你如何使用该项目的脚本
