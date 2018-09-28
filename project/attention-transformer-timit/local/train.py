@@ -186,7 +186,9 @@ def main():
 
     print('[PROCEDURE] prepare trainning.')
 
+    print('[INFO] reading training data...')
     train_data = initialize_batch_loader(opt.read_feats_scp_file, opt.read_text_file, opt.read_vocab_file, opt.batch_size)
+    print('[INFO] reading testing data...')
     eval_data = initialize_batch_loader(opt.read_feats_scp_file, opt.read_text_file, opt.read_vocab_file, opt.batch_size)
     print('[INFO] batch loader is initialized')
 
