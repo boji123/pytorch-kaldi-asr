@@ -21,7 +21,7 @@ else
     exit 1
 fi
 mkdir -p exp
-stage=0
+stage=2
 if [ $stage -le 0 ]; then
     python3 local/prepare_vocab.py -read_instances_file data/text.maxlen_500 -save_vocab_file exp/vocab.torch
 fi
@@ -46,7 +46,7 @@ fi
 
 if [ $stage -le 2 ]; then
     echo '[PROCEDURE]trainning start... log is in train.log'
-    $cuda_cmd train.log CUDA_VISIBLE_DEVICES=3 python3 -u local/train.py \
+    $cuda_cmd train.log CUDA_VISIBLE_DEVICES=2 python3 -u local/train.py \
         -read_feats_scp_file data/feats.maxlen_500.scp \
         -read_text_file data/text.maxlen_500 \
         -read_vocab_file exp/vocab.torch \

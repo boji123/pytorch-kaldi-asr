@@ -7,6 +7,9 @@ from torch.autograd import Variable
 from transformer.Models import Transformer
 from transformer.Beam import Beam
 
+# further edited by liu.baiji
+# adapted for speech recognition
+
 class Translator(object):
     ''' Load with trained model and handle the beam search '''
 
@@ -77,6 +80,7 @@ class Translator(object):
         n_remaining_sents = batch_size
 
         #- Decode
+        prob_projection = nn.LogSoftmax()
         for i in range(self.model_opt.max_token_seq_len):
 
             len_dec_seq = i + 1

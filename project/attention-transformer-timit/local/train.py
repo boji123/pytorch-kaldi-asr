@@ -99,6 +99,8 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
         tgt_seq, tgt_pad_mask = instances_handler.pad_to_longest(tgt)
 
         src_seq = Variable(torch.FloatTensor(src_seq)) #batch * max length in batch * padded feature dim
+        #print(src_seq.data[0:5])
+        #exit(0)
         src_pad_mask = Variable(torch.LongTensor(src_pad_mask)) #batch * maxlength in batch * bool mask dim
         tgt_seq = Variable(torch.LongTensor(tgt_seq)) #batch * max length in batch * padded index dim
         tgt_pad_mask = Variable(torch.LongTensor(tgt_pad_mask)) #batch * maxlength in batch * bool mask dim
@@ -138,9 +140,9 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
     return total_loss/n_total_words, n_total_correct/n_total_words
 
 
-def train(model, train_data, eval_data, crit, optimizer, opt, model_options):
+def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options):
     valid_accus = []
-    for epoch in range(opt.curr_epoch, opt.epoch + 1):
+    for epoch in range(1, opt.epoch + 1):
         print('[INFO] trainning epoch {}.'.format(epoch))
 
         start = time.time()
@@ -148,9 +150,20 @@ def train(model, train_data, eval_data, crit, optimizer, opt, model_options):
         print('[INFO]-----(Training)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(train_loss, 100)), 100*train_accu, (time.time()-start)/60))
 
+        #eval the training result(after dropout off)
         start = time.time()
-        valid_loss, valid_accu = train_epoch(model, eval_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
-        print('[INFO]-----(Validation)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
+        valid_loss, valid_accu = train_epoch(model, train_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
+        print('[INFO]-----(evaluating train set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
+            .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
+
+        start = time.time()
+        valid_loss, valid_accu = train_epoch(model, dev_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
+        print('[INFO]-----(evaluating dev set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
+            .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
+
+        start = time.time()
+        valid_loss, valid_accu = train_epoch(model, test_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
+        print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
 
         checkpoint = {
@@ -160,26 +173,24 @@ def train(model, train_data, eval_data, crit, optimizer, opt, model_options):
         'train_options': opt}
 
         valid_accus += [valid_accu]
-        model_name = opt.save_model_perfix + '.epoch{}.accu_{:3.2f}.torch'.format(epoch, 100*valid_accu)
+        model_name = opt.save_model_dir + '/epoch{}.accu_{:3.2f}.torch'.format(epoch, 100*valid_accu)
         torch.save(checkpoint, model_name)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-read_feats_scp_file', required=True)
-    parser.add_argument('-read_text_file', required=True)
+    parser.add_argument('-read_train_dir', required=True)
+    parser.add_argument('-read_dev_dir', required=True)
+    parser.add_argument('-read_test_dir', required=True)
     parser.add_argument('-read_vocab_file', required=True)
     parser.add_argument('-load_model_file', required=True)
-
-    parser.add_argument('-n_warmup_steps', type=int, default=4000)
-    parser.add_argument('-epoch', type=int, default=10)
+    parser.add_argument('-save_model_dir', required=True)
     #the epoch of initialized model is 0, after 1 epoch training, epoch is 1
     #if continue trainning, curr_epoch should be model.epoch + 1
-    parser.add_argument('-curr_epoch', type=int, default=1)
-
+    parser.add_argument('-epoch', type=int, default=50)
+    parser.add_argument('-optim_start_lr', type=float, default=0.001)
+    parser.add_argument('-optim_soft_coefficient', type=float, default=1000)
     parser.add_argument('-batch_size', type=int, default=64)
-
-    parser.add_argument('-save_model_perfix', required=True)
     parser.add_argument('-use_gpu', action='store_true')
     opt = parser.parse_args()
 
@@ -187,9 +198,13 @@ def main():
     print('[PROCEDURE] prepare trainning.')
 
     print('[INFO] reading training data...')
-    train_data = initialize_batch_loader(opt.read_feats_scp_file, opt.read_text_file, opt.read_vocab_file, opt.batch_size)
-    print('[INFO] reading testing data...')
-    eval_data = initialize_batch_loader(opt.read_feats_scp_file, opt.read_text_file, opt.read_vocab_file, opt.batch_size)
+    train_data = initialize_batch_loader(opt.read_train_dir + '/feats.scp', opt.read_train_dir + '/text', opt.read_vocab_file, opt.batch_size)
+
+    print('[INFO] reading dev data...')
+    dev_data = initialize_batch_loader(opt.read_dev_dir + '/feats.scp', opt.read_dev_dir + '/text', opt.read_vocab_file, opt.batch_size)
+
+    print('[INFO] reading test data...')
+    test_data = initialize_batch_loader(opt.read_test_dir + '/feats.scp', opt.read_test_dir + '/text', opt.read_vocab_file, opt.batch_size)
     print('[INFO] batch loader is initialized')
 
 
@@ -208,17 +223,18 @@ def main():
     crit = get_criterion(vocab_size)
     print('[INFO] using cross entropy loss.')
 
-
     optimizer = ScheduledOptim(
         optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-09),
-        model_options.d_model * 2, opt.n_warmup_steps)
+        start_lr = opt.optim_start_lr,
+        soft_coefficient = opt.optim_soft_coefficient)
+
     print('[INFO] using adam as optimizer.')
 
     print('[PROCEDURE] trainning start...')
     if opt.use_gpu:
-        model = model.cuda()
-        crit = crit.cuda()
-    train(model, train_data, eval_data, crit, optimizer, opt, model_options)
+        model.cuda()
+        crit.cuda()
+    train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options)
 
 
 if __name__ == '__main__':

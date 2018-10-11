@@ -7,8 +7,11 @@ from utils import instances_handler
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-data_dir', required=True)
+    parser.add_argument('-output_dir', required=True)
     parser.add_argument('-max_len', type=int, required=True)
     opt = parser.parse_args()
+
+    os.system('cp -r {} {}'.format(opt.data_dir, opt.output_dir))
 
     read_path = {}
     read_path['feats'] = opt.data_dir + '/feats.scp'
@@ -28,8 +31,8 @@ def main():
             length_dict[key] = length
 
     write_path = {}
-    write_path['feats'] = opt.data_dir + '/feats.filtered.scp'
-    write_path['text'] = opt.data_dir + '/text.filtered'
+    write_path['feats'] = opt.output_dir + '/feats.scp'
+    write_path['text'] = opt.output_dir + '/text'
 
     print('[INFO] filtering instance with max length {}.'.format(opt.max_len))
 

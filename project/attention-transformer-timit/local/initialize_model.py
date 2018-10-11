@@ -11,7 +11,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-read_feats_scp_file', required=True)
     parser.add_argument('-read_vocab_file', required=True)
-    parser.add_argument('-max_token_seq_len', type=int, required=True)
 
     parser.add_argument('-n_layers', type=int, default=6)
     parser.add_argument('-n_head', type=int, default=8)
@@ -41,7 +40,6 @@ def main():
     model = Transformer(
         opt.src_dim,
         opt.tgt_vocab_dim,
-        opt.max_token_seq_len,
         n_layers=opt.n_layers,
         n_head=opt.n_head,
         d_model=opt.d_model,
