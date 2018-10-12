@@ -99,8 +99,6 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
         tgt_seq, tgt_pad_mask = instances_handler.pad_to_longest(tgt)
 
         src_seq = Variable(torch.FloatTensor(src_seq)) #batch * max length in batch * padded feature dim
-        #print(src_seq.data[0:5])
-        #exit(0)
         src_pad_mask = Variable(torch.LongTensor(src_pad_mask)) #batch * maxlength in batch * bool mask dim
         tgt_seq = Variable(torch.LongTensor(tgt_seq)) #batch * max length in batch * padded index dim
         tgt_pad_mask = Variable(torch.LongTensor(tgt_pad_mask)) #batch * maxlength in batch * bool mask dim
@@ -224,7 +222,8 @@ def main():
     print('[INFO] using cross entropy loss.')
 
     optimizer = ScheduledOptim(
-        optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-09),
+        optim.Adam(filter(lambda p: p.requires_grad,transformer.get_trainable_parameters()),
+            betas=(0.9, 0.98), eps=1e-09),
         start_lr = opt.optim_start_lr,
         soft_coefficient = opt.optim_soft_coefficient)
 
