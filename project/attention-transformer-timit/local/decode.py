@@ -117,12 +117,7 @@ def translate_batch(model, batch, opt, model_options):
         if opt.use_gpu:
             dec_partial_seq = dec_partial_seq.cuda()
             dec_partial_seq_mask = dec_partial_seq_mask.cuda()
-            
-        print('\nnext\n')
-        print(dec_partial_seq.size())
-        print(dec_partial_seq_mask.size())
-        print(src_pad_mask.size())
-        print(enc_output.size())
+
         # -- Decoding -- #
         dec_output, *_ = model.decoder(dec_partial_seq, dec_partial_seq_mask, src_pad_mask, enc_output)
         dec_output = dec_output[:, -1, :] # (batch * beam) * d_model
@@ -182,7 +177,7 @@ def translate_batch(model, batch, opt, model_options):
 
             return Variable(active_enc_info_data, volatile=True)
 
-        src_seq = update_active_seq(src_seq, active_inst_idxs)
+        src_pad_mask = update_active_seq(src_pad_mask, active_inst_idxs)
         enc_output = update_active_enc_info(enc_output, active_inst_idxs)
 
         #- update the remaining size
@@ -193,9 +188,9 @@ def translate_batch(model, batch, opt, model_options):
 
     for beam_idx in range(batch_size):
         scores, tail_idxs = beams[beam_idx].sort_scores()
-        all_scores += [scores[0]]
+        all_scores += [scores[:opt.n_best]]
 
-        hyps = [beams[beam_idx].get_hypothesis(i) for i in tail_idxs[0]]
+        hyps = [beams[beam_idx].get_hypothesis(i) for i in tail_idxs[:opt.n_best]]
         all_hyp += [hyps]
 
     return all_hyp, all_scores
@@ -208,14 +203,15 @@ def main():
     parser.add_argument('-load_model_file', required=True)
     parser.add_argument('-save_result_file', required=True)
 
+    parser.add_argument('-n_best', type=int, default=1)
     parser.add_argument('-max_token_seq_len', type=int, default=100)
     parser.add_argument('-batch_size', type=int, default=64)
-    parser.add_argument('-beam_size', type=int, default=10)
+    parser.add_argument('-beam_size', type=int, default=20)
     parser.add_argument('-use_gpu', action='store_true')
     opt = parser.parse_args()
 
 
-    test_data = initialize_batch_loader(opt.read_decode_dir + '/feats.scp', opt.read_decode_dir + '/text', opt.read_vocab_file, opt.batch_size)
+    decode_data = initialize_batch_loader(opt.read_decode_dir + '/feats.scp', opt.read_decode_dir + '/text', opt.read_vocab_file, opt.batch_size)
     print('[INFO] batch loader is initialized')
 
     checkpoint = torch.load(opt.load_model_file)
@@ -228,17 +224,25 @@ def main():
     if opt.use_gpu:
         model = model.cuda()
 
+
+    word2idx = torch.load(opt.read_vocab_file)
+    idx2word = {index:word for word, index in word2idx.items()}
     with open(opt.save_result_file, 'wb') as f:
-        for batch in tqdm(test_data, mininterval=2, desc='  - (Test)', leave=False):
+        for batch in tqdm(decode_data, mininterval=2, desc='(decode)'):
+            tgt = [triples[2] for triples in batch]
             all_hyp, all_scores = translate_batch(model, batch, opt, model_options)
+            for (a, b) in zip(tgt, all_hyp):
+                print('next')
+                print(a[1:-1].tolist())
+                print(b[0][:-1])
             exit(0)
-            '''
             for idx_seqs in all_hyp:
                 for idx_seq in idx_seqs:
-                    pred_line = ' '.join([test_data.tgt_idx2word[idx] for idx in idx_seq]) + '\n'
-                    pred_line = pred_line.encode('utf-8')
-                    f.write(pred_line)
-            '''
+                    word_seq = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in idx_seq[:-1]]
+                    pred_line = ' '.join(word_seq) + '\n'
+                    f.write(pred_line.encode('utf-8'))
+            exit(0)
+
 
 if __name__ == '__main__':
     main()

@@ -7,7 +7,7 @@
 
 import torch
 import numpy as np
-import transformer.Constants as Constants
+from utils import constants
 
 class Beam(object):
     ''' Store the neccesary info for beam search. '''
@@ -27,8 +27,8 @@ class Beam(object):
         self.prev_ks = []
 
         # The outputs at each time-step.
-        self.next_ys = [self.tt.LongTensor(size).fill_(Constants.PAD)]
-        self.next_ys[0][0] = Constants.BOS
+        self.next_ys = [self.tt.LongTensor(size).fill_(constants.PAD)]
+        self.next_ys[0][0] = constants.BOS
 
     def get_current_state(self):
         "Get the outputs for the current timestep."
@@ -63,7 +63,7 @@ class Beam(object):
         self.next_ys.append(best_scores_id - prev_k * num_words)
 
         # End condition is when top-of-beam is EOS.
-        if self.next_ys[-1][0] == Constants.EOS:
+        if self.next_ys[-1][0] == constants.EOS:
             self.done = True
             self.all_scores.append(self.scores)
 
@@ -86,7 +86,7 @@ class Beam(object):
         else:
             _, keys = self.sort_scores()
             hyps = [self.get_hypothesis(k) for k in keys]
-            hyps = [[Constants.BOS] + h for h in hyps]
+            hyps = [[constants.BOS] + h for h in hyps]
             dec_seq = torch.from_numpy(np.array(hyps))
 
         return dec_seq

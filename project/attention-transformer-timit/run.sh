@@ -96,7 +96,7 @@ if [ $stage -le 4 ]; then
         -load_model_file exp/model.train96 \
         -max_token_seq_len 100 \
         -batch_size 32 \
-        -beam_size 10 \
+        -beam_size 20 \
         -save_result_file exp/result.txt\
         -use_gpu || exit 1
     echo '[INFO] decoding finish.'
