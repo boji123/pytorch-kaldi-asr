@@ -58,7 +58,7 @@ if [ $stage -le 3 ]; then
     time=$(date "+%Y%m%d-%H%M%S")
     mkdir -p exp/model-$time
     if $use_gpu; then
-        $cuda_cmd train.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train2.log CUDA_VISIBLE_DEVICES=2 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train_filtered \
             -read_dev_dir data/dev_filtered \
             -read_test_dir data/test_filtered \

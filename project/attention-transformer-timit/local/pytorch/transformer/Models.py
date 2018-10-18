@@ -34,7 +34,7 @@ def get_attn_padding_mask(seq_q, seq_k):
 
     return pad_attn_mask
 
-def get_attn_subsequent_mask(seq, atten_length=20):
+def get_attn_subsequent_mask(seq):
     ''' Get an attention mask to avoid using the subsequent info.'''
     ''' length limited the attention, use for sequence to reduce the context dependent length '''
     assert seq.dim() == 2
@@ -81,7 +81,9 @@ class Encoder(nn.Module):
             enc_slf_attns = []
 
         enc_output = src_seq + src_pos
-        enc_slf_attn_mask = get_attn_padding_mask(src_pad_mask, src_pad_mask)
+        enc_slf_attn_pad_mask = get_attn_padding_mask(src_pad_mask, src_pad_mask)
+        enc_slf_attn_sub_mask = get_attn_subsequent_mask(src_pad_mask)
+        enc_slf_attn_mask = torch.gt(enc_slf_attn_pad_mask + enc_slf_attn_sub_mask, 0)
 
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(
