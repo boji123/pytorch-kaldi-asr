@@ -12,6 +12,9 @@ def main():
     parser.add_argument('-read_feats_scp_file', required=True)
     parser.add_argument('-read_vocab_file', required=True)
 
+    parser.add_argument('-encoder_max_len', type=int, required=True)
+    parser.add_argument('-decoder_max_len', type=int, required=True)
+
     parser.add_argument('-n_layers', type=int, default=6)
     parser.add_argument('-n_head', type=int, default=8)
     parser.add_argument('-d_model', type=int, default=512)
@@ -19,8 +22,6 @@ def main():
     parser.add_argument('-d_k', type=int, default=64)
     parser.add_argument('-d_v', type=int, default=64)
     parser.add_argument('-dropout', type=float, default=0.1)
-    parser.add_argument('-proj_share_weight', action='store_true')
-    parser.add_argument('-embs_share_weight', action='store_true')
 
     parser.add_argument('-save_model_file', required=True)
     opt = parser.parse_args()
@@ -40,15 +41,15 @@ def main():
     model = Transformer(
         opt.src_dim,
         opt.tgt_vocab_dim,
+        encoder_max_len=opt.encoder_max_len,
+        decoder_max_len=opt.decoder_max_len,
         n_layers=opt.n_layers,
         n_head=opt.n_head,
         d_model=opt.d_model,
         d_inner_hid=opt.d_inner_hid,
         d_k=opt.d_k,
         d_v=opt.d_v,
-        dropout=opt.dropout,
-        proj_share_weight=opt.proj_share_weight,
-        embs_share_weight=opt.embs_share_weight)
+        dropout=opt.dropout)
 
     checkpoint = {
         'model': model,

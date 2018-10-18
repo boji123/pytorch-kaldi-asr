@@ -34,5 +34,4 @@ class DecoderLayer(nn.Module):
         dec_output, dec_enc_attn = self.enc_attn(
             dec_output, enc_output, enc_output, attn_mask=dec_enc_attn_mask)
         dec_output = self.pos_ffn(dec_output)
-
         return dec_output, dec_slf_attn, dec_enc_attn

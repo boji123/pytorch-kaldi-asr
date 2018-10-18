@@ -6,6 +6,7 @@ from utils import constants
 from transformer.Modules import BottleLinear as Linear
 from transformer.Layers import EncoderLayer, DecoderLayer
 import torch.nn.functional as F
+from torch.autograd import Variable
 __author__ = "Yu-Hsiang Huang"
 
 # further edited by liu.baiji
@@ -33,12 +34,16 @@ def get_attn_padding_mask(seq_q, seq_k):
 
     return pad_attn_mask
 
-def get_attn_subsequent_mask(seq):
+def get_attn_subsequent_mask(seq, atten_length=20):
     ''' Get an attention mask to avoid using the subsequent info.'''
+    ''' length limited the attention, use for sequence to reduce the context dependent length '''
     assert seq.dim() == 2
     attn_shape = (seq.size(0), seq.size(1), seq.size(1))
     subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+    #length_mask = 1 - np.triu(np.ones(attn_shape), k=1-atten_length).astype('uint8')
+    #subsequent_mask = subsequent_mask + length_mask
     subsequent_mask = torch.from_numpy(subsequent_mask)
+
     if seq.is_cuda:
         subsequent_mask = subsequent_mask.cuda()
     return subsequent_mask
@@ -46,15 +51,17 @@ def get_attn_subsequent_mask(seq):
 class Encoder(nn.Module):
     ''' A encoder model with self attention mechanism. '''
     def __init__(
-            self, n_src_dim, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_model=512, d_inner_hid=1024, dropout=0.1):
+            self, n_src_dim, encoder_max_len, n_layers=6, n_head=8,
+            d_k=64, d_v=64, d_model=512, d_inner_hid=1024, dropout=0.1):
 
         super(Encoder, self).__init__()
 
         self.d_model = d_model
-
         self.dropout = nn.Dropout(dropout)
-        
+
+        self.position_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
+        self.position_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
+
         #project the source to dim of model
         self.src_projection = Linear(n_src_dim, d_model, bias=False)
         self.layer_stack = nn.ModuleList([
@@ -62,13 +69,18 @@ class Encoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, src_seq, src_pad_mask, return_attns=False):
+        src_pos = Variable(torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1))
+        if src_seq.is_cuda:
+            src_pos = src_pos.cuda()
+        src_pos = self.position_enc(src_pos)
+
         #src_seq batch*len*featdim -> batch*len*modeldim
         src_seq = self.src_projection(src_seq)
 
         if return_attns:
             enc_slf_attns = []
 
-        enc_output = src_seq
+        enc_output = src_seq + src_pos
         enc_slf_attn_mask = get_attn_padding_mask(src_pad_mask, src_pad_mask)
 
         for enc_layer in self.layer_stack:
@@ -85,13 +97,14 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     ''' A decoder model with self attention mechanism. '''
     def __init__(
-            self, n_tgt_vocab, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_model=512, d_inner_hid=1024, dropout=0.1):
+            self, n_tgt_vocab, decoder_max_len, n_layers=6, n_head=8,
+            d_k=64, d_v=64, d_model=512, d_inner_hid=1024, dropout=0.1):
 
         super(Decoder, self).__init__()
         self.d_model = d_model
-
         self.dropout = nn.Dropout(dropout)
+        self.position_enc = nn.Embedding(decoder_max_len, d_model, padding_idx=constants.PAD)
+        self.position_enc.weight.data = position_encoding_init(decoder_max_len, d_model)
 
         self.tgt_word_emb = nn.Embedding(n_tgt_vocab, d_model, padding_idx=constants.PAD)
         self.tgt_word_proj = Linear(d_model, n_tgt_vocab, bias=False)
@@ -100,6 +113,11 @@ class Decoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, tgt_seq, tgt_pad_mask, src_pad_mask, enc_output, return_attns=False):
+        tgt_pos = Variable(torch.arange(0, tgt_seq.size(1)).long().repeat(tgt_seq.size(0), 1))
+        if tgt_seq.is_cuda:
+            tgt_pos = tgt_pos.cuda()
+        tgt_pos = self.position_enc(tgt_pos)
+
         #word -> dim model
         tgt_seq = self.tgt_word_emb(tgt_seq)
 
@@ -107,13 +125,12 @@ class Decoder(nn.Module):
         dec_slf_attn_pad_mask = get_attn_padding_mask(tgt_pad_mask, tgt_pad_mask)
         dec_slf_attn_sub_mask = get_attn_subsequent_mask(tgt_pad_mask)
         dec_slf_attn_mask = torch.gt(dec_slf_attn_pad_mask + dec_slf_attn_sub_mask, 0)
-
         dec_enc_attn_pad_mask = get_attn_padding_mask(tgt_pad_mask, src_pad_mask)
 
         if return_attns:
             dec_slf_attns, dec_enc_attns = [], []
 
-        dec_output = tgt_seq
+        dec_output = tgt_seq + tgt_pos
         for dec_layer in self.layer_stack:
             dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
                 dec_output, enc_output,
@@ -134,27 +151,24 @@ class Decoder(nn.Module):
 class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
-            self, n_src_dim, n_tgt_vocab, n_layers=6, n_head=8,
-            d_model=512, d_inner_hid=1024, d_k=64, d_v=64, dropout=0.1,
-            proj_share_weight=True, embs_share_weight=True):
+            self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len,
+            n_layers=6, n_head=8, d_model=512, d_inner_hid=1024, d_k=64, d_v=64, dropout=0.1):
 
         super(Transformer, self).__init__()
         self.encoder = Encoder(
-            n_layers=n_layers, n_head=n_head, n_src_dim=n_src_dim,
+            n_src_dim=n_src_dim, encoder_max_len=encoder_max_len, n_layers=n_layers, n_head=n_head,
             d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
         self.decoder = Decoder(
-            n_layers=n_layers, n_head=n_head, n_tgt_vocab=n_tgt_vocab,
+            n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, n_layers=n_layers, n_head=n_head,
             d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
-
-        self.dropout = nn.Dropout(dropout)
 
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
-        #enc_freezed_param_ids = set(map(id, self.encoder.position_enc.parameters()))
-        #dec_freezed_param_ids = set(map(id, self.decoder.position_enc.parameters()))
-        #freezed_param_ids = enc_freezed_param_ids | dec_freezed_param_ids
-        #return (p for p in self.parameters() if id(p) not in freezed_param_ids)
-        return (p for p in self.parameters())
+        enc_freezed_param_ids = set(map(id, self.encoder.position_enc.parameters()))
+        dec_freezed_param_ids = set(map(id, self.decoder.position_enc.parameters()))
+        freezed_param_ids = enc_freezed_param_ids | dec_freezed_param_ids
+        return (p for p in self.parameters() if id(p) not in freezed_param_ids)
+        #return (p for p in self.parameters())
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):
         enc_output, *_ = self.encoder(src_seq, src_pad_mask)

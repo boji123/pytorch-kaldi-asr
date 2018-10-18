@@ -89,9 +89,9 @@ class ScaledDotProductAttention(nn.Module):
                     '{}.'.format(attn_mask.size(), attn.size())
 
             attn.data.masked_fill_(attn_mask, -float('inf'))
-
         attn = self.softmax(attn)
+        #incase condition of all -inf, in this condition, softmax will return nan and cause error
+        attn.data.masked_fill_(attn_mask, 0)
         attn = self.dropout(attn)
         output = torch.bmm(attn, v)
-
         return output, attn

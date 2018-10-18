@@ -203,8 +203,8 @@ def main():
     parser.add_argument('-load_model_file', required=True)
     parser.add_argument('-save_result_file', required=True)
 
+    parser.add_argument('-max_token_seq_len', type=int, required=True)
     parser.add_argument('-n_best', type=int, default=1)
-    parser.add_argument('-max_token_seq_len', type=int, default=100)
     parser.add_argument('-batch_size', type=int, default=64)
     parser.add_argument('-beam_size', type=int, default=20)
     parser.add_argument('-use_gpu', action='store_true')

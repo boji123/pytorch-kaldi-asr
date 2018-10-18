@@ -222,7 +222,7 @@ def main():
     print('[INFO] using cross entropy loss.')
 
     optimizer = ScheduledOptim(
-        optim.Adam(filter(lambda p: p.requires_grad,transformer.get_trainable_parameters()),
+        optim.Adam(filter(lambda p: p.requires_grad,model.get_trainable_parameters()),
             betas=(0.9, 0.98), eps=1e-09),
         start_lr = opt.optim_start_lr,
         soft_coefficient = opt.optim_soft_coefficient)
