@@ -41,7 +41,7 @@ if [ $stage -le 2 ]; then
         \
         -encoder_max_len 500 \
         -decoder_max_len 100 \
-        -src_fold 4 \
+        -src_fold 2 \
         \
         -n_layers 2 \
         -n_head 3 \
@@ -59,7 +59,7 @@ if [ $stage -le 3 ]; then
     time=$(date "+%Y%m%d-%H%M%S")
     if $use_gpu; then
         mkdir -p exp/model-$time
-        $cuda_cmd train.log4 CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.log7 CUDA_VISIBLE_DEVICES=1 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train_filtered \
             -read_dev_dir data/dev_filtered \
             -read_test_dir data/test_filtered \
@@ -69,7 +69,7 @@ if [ $stage -le 3 ]; then
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 2000 \
             -epoch 100 \
-            -batch_size 50 \
+            -batch_size 100 \
             -save_model_dir exp/model-$time \
             -use_gpu || exit 1
     else

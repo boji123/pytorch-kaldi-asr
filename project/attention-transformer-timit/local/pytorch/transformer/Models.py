@@ -49,15 +49,21 @@ def get_attn_subsequent_mask(seq):
     return subsequent_mask
 
 def fold_seq_and_mask(seq, pad_mask, fold):
-    #reshape the input: length/2, dim*2
-    seq_len_trimed = seq.size(1) - seq.size(1) % fold
-    seq = seq[:,:seq_len_trimed].contiguous()
-    seq = seq.view(seq.size(0),-1,seq.size(2)*fold)
-    #reshape the mask as size of input
-    pad_mask = pad_mask[:,:seq_len_trimed].contiguous()
-    pad_mask = pad_mask.view(pad_mask.size(0),-1,fold)
-    pad_mask = pad_mask[:,:,fold-1].contiguous()
-    return seq, pad_mask
+    if fold == 1:
+        return seq, pad_mask
+    elif fold < 1:
+        print('[ERROR] invaldi data fold parameter')
+        exit(1)
+    else:
+        #reshape the input: length/2, dim*2
+        seq_len_trimed = seq.size(1) - seq.size(1) % fold
+        seq = seq[:,:seq_len_trimed].contiguous()
+        seq = seq.view(seq.size(0),-1,seq.size(2)*fold)
+        #reshape the mask as size of input
+        pad_mask = pad_mask[:,:seq_len_trimed].contiguous()
+        pad_mask = pad_mask.view(pad_mask.size(0),-1,fold)
+        pad_mask = pad_mask[:,:,fold-1].contiguous()
+        return seq, pad_mask
 
 class Encoder(nn.Module):
     ''' A encoder model with self attention mechanism. '''
