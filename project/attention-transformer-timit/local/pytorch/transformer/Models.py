@@ -48,6 +48,17 @@ def get_attn_subsequent_mask(seq):
         subsequent_mask = subsequent_mask.cuda()
     return subsequent_mask
 
+def fold_seq_and_mask(seq, pad_mask, fold):
+    #reshape the input: length/2, dim*2
+    seq_len_trimed = seq.size(1) - seq.size(1) % fold
+    seq = seq[:,:seq_len_trimed].contiguous()
+    seq = seq.view(seq.size(0),-1,seq.size(2)*fold)
+    #reshape the mask as size of input
+    pad_mask = pad_mask[:,:seq_len_trimed].contiguous()
+    pad_mask = pad_mask.view(pad_mask.size(0),-1,fold)
+    pad_mask = pad_mask[:,:,fold-1].contiguous()
+    return seq, pad_mask
+
 class Encoder(nn.Module):
     ''' A encoder model with self attention mechanism. '''
     def __init__(
@@ -69,6 +80,7 @@ class Encoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, src_seq, src_pad_mask, return_attns=False):
+
         src_pos = Variable(torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1))
         if src_seq.is_cuda:
             src_pos = src_pos.cuda()
@@ -115,6 +127,7 @@ class Decoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, tgt_seq, tgt_pad_mask, src_pad_mask, enc_output, return_attns=False):
+
         tgt_pos = Variable(torch.arange(0, tgt_seq.size(1)).long().repeat(tgt_seq.size(0), 1))
         if tgt_seq.is_cuda:
             tgt_pos = tgt_pos.cuda()
@@ -153,12 +166,14 @@ class Decoder(nn.Module):
 class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
-            self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len,
+            self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len, src_fold=1,
             n_layers=6, n_head=8, d_model=512, d_inner_hid=1024, d_k=64, d_v=64, dropout=0.1):
 
         super(Transformer, self).__init__()
+
+        self.src_fold = src_fold
         self.encoder = Encoder(
-            n_src_dim=n_src_dim, encoder_max_len=encoder_max_len, n_layers=n_layers, n_head=n_head,
+            n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, n_layers=n_layers, n_head=n_head,
             d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
         self.decoder = Decoder(
             n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, n_layers=n_layers, n_head=n_head,
@@ -173,6 +188,9 @@ class Transformer(nn.Module):
         #return (p for p in self.parameters())
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):
+        #reshape the input and input mask: length/fold, dim*fold
+        src_seq, src_pad_mask = fold_seq_and_mask(src_seq, src_pad_mask, self.src_fold)
+
         enc_output, *_ = self.encoder(src_seq, src_pad_mask)
         dec_output, *_ = self.decoder(tgt_seq, tgt_pad_mask, src_pad_mask, enc_output)
         #return batch*seq len*word dim

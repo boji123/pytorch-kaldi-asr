@@ -14,6 +14,7 @@ def main():
 
     parser.add_argument('-encoder_max_len', type=int, required=True)
     parser.add_argument('-decoder_max_len', type=int, required=True)
+    parser.add_argument('-src_fold', type=int, default=1)
 
     parser.add_argument('-n_layers', type=int, default=6)
     parser.add_argument('-n_head', type=int, default=8)
@@ -43,6 +44,7 @@ def main():
         opt.tgt_vocab_dim,
         encoder_max_len=opt.encoder_max_len,
         decoder_max_len=opt.decoder_max_len,
+        src_fold=opt.src_fold,
         n_layers=opt.n_layers,
         n_head=opt.n_head,
         d_model=opt.d_model,

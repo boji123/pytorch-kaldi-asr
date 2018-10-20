@@ -41,6 +41,7 @@ if [ $stage -le 2 ]; then
         \
         -encoder_max_len 500 \
         -decoder_max_len 100 \
+        -src_fold 4 \
         \
         -n_layers 2 \
         -n_head 3 \
@@ -56,9 +57,9 @@ use_gpu=true
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     time=$(date "+%Y%m%d-%H%M%S")
-    mkdir -p exp/model-$time
     if $use_gpu; then
-        $cuda_cmd train2.log CUDA_VISIBLE_DEVICES=2 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        mkdir -p exp/model-$time
+        $cuda_cmd train.log4 CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train_filtered \
             -read_dev_dir data/dev_filtered \
             -read_test_dir data/test_filtered \
@@ -66,8 +67,8 @@ if [ $stage -le 3 ]; then
             -load_model_file exp/model.init.torch \
             \
             -optim_start_lr 0.001 \
-            -optim_soft_coefficient 1000 \
-            -epoch 50 \
+            -optim_soft_coefficient 2000 \
+            -epoch 100 \
             -batch_size 50 \
             -save_model_dir exp/model-$time \
             -use_gpu || exit 1

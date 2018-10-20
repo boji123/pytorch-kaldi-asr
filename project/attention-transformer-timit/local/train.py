@@ -95,6 +95,7 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
         #key = [triples[0] for triples in batch]
         src = [triples[1] for triples in batch]
         tgt = [triples[2] for triples in batch]
+
         src_seq, src_pad_mask = instances_handler.pad_to_longest(src)
         tgt_seq, tgt_pad_mask = instances_handler.pad_to_longest(tgt)
 
