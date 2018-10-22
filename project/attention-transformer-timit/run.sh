@@ -9,7 +9,7 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1,io=0"
 set -e # exit on error
 #------------------------------------------------------------
 stage=2
@@ -59,16 +59,16 @@ if [ $stage -le 3 ]; then
     time=$(date "+%Y%m%d-%H%M%S")
     if $use_gpu; then
         mkdir -p exp/model-$time
-        $cuda_cmd train.log2 CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.drop010.log CUDA_VISIBLE_DEVICES=2 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train_filtered \
             -read_dev_dir data/dev_filtered \
             -read_test_dir data/test_filtered \
             -read_vocab_file exp/vocab.torch \
             -load_model_file exp/model.init.torch \
             \
-            -optim_start_lr 0.002 \
+            -optim_start_lr 0.001 \
             -optim_soft_coefficient 2000 \
-            -epoch 100 \
+            -epoch 150 \
             -batch_size 90 \
             -save_model_dir exp/model-$time \
             -use_gpu || exit 1

@@ -78,6 +78,9 @@ class Encoder(nn.Module):
         self.position_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
         self.position_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
 
+        self.trans_pos_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
+        self.trans_pos_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
+
         #project the source to dim of model
         self.src_projection = Linear(n_src_dim, d_model, bias=False)
         self.layer_stack = nn.ModuleList([
@@ -85,10 +88,10 @@ class Encoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, src_seq, src_pad_mask, return_attns=False):
-
         src_pos = Variable(torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1))
         if src_seq.is_cuda:
             src_pos = src_pos.cuda()
+        trans_pos = self.trans_pos_enc(src_pos)
         src_pos = self.position_enc(src_pos)
 
         #src_seq batch*len*featdim -> batch*len*modeldim
@@ -96,8 +99,10 @@ class Encoder(nn.Module):
 
         if return_attns:
             enc_slf_attns = []
-
+        
         enc_output = src_seq + src_pos
+        enc_output = self.dropout(enc_output)
+
         enc_slf_attn_pad_mask = get_attn_padding_mask(src_pad_mask, src_pad_mask)
         enc_slf_attn_sub_mask = get_attn_subsequent_mask(src_pad_mask)
         enc_slf_attn_mask = torch.gt(enc_slf_attn_pad_mask + enc_slf_attn_sub_mask, 0)
@@ -108,6 +113,8 @@ class Encoder(nn.Module):
             if return_attns:
                 enc_slf_attns += [enc_slf_attn]
 
+        enc_output = enc_output + trans_pos
+        enc_output = self.dropout(enc_output)
         if return_attns:
             return enc_output, enc_slf_attns
         else:
@@ -132,7 +139,6 @@ class Decoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, tgt_seq, tgt_pad_mask, src_pad_mask, enc_output, return_attns=False):
-
         tgt_pos = Variable(torch.arange(0, tgt_seq.size(1)).long().repeat(tgt_seq.size(0), 1))
         if tgt_seq.is_cuda:
             tgt_pos = tgt_pos.cuda()
@@ -151,6 +157,8 @@ class Decoder(nn.Module):
             dec_slf_attns, dec_enc_attns = [], []
 
         dec_output = tgt_seq + tgt_pos
+        dec_output = self.dropout(dec_output)
+
         for dec_layer in self.layer_stack:
             dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
                 dec_output, enc_output,
@@ -160,9 +168,8 @@ class Decoder(nn.Module):
             if return_attns:
                 dec_slf_attns += [dec_slf_attn]
                 dec_enc_attns += [dec_enc_attn]
-
+        dec_output = self.dropout(dec_output)
         dec_output = self.tgt_word_proj(dec_output)
-
         if return_attns:
             return dec_output, dec_slf_attns, dec_enc_attns
         else:
@@ -188,7 +195,8 @@ class Transformer(nn.Module):
         ''' Avoid updating the position encoding '''
         enc_freezed_param_ids = set(map(id, self.encoder.position_enc.parameters()))
         dec_freezed_param_ids = set(map(id, self.decoder.position_enc.parameters()))
-        freezed_param_ids = enc_freezed_param_ids | dec_freezed_param_ids
+        trans_freezed_param_ids = set(map(id, self.encoder.trans_pos_enc.parameters()))
+        freezed_param_ids = enc_freezed_param_ids | dec_freezed_param_ids | trans_freezed_param_ids
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
         #return (p for p in self.parameters())
 
