@@ -49,7 +49,7 @@ if [ $stage -le 2 ]; then
         -d_inner_hid 256 \
         -d_k 64 \
         -d_v 64 \
-        -dropout 0.1 \
+        -dropout 0.2 \
 
 fi
 
@@ -59,7 +59,7 @@ if [ $stage -le 3 ]; then
     time=$(date "+%Y%m%d-%H%M%S")
     if $use_gpu; then
         mkdir -p exp/model-$time
-        $cuda_cmd train.drop010.log CUDA_VISIBLE_DEVICES=2 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.drop.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train_filtered \
             -read_dev_dir data/dev_filtered \
             -read_test_dir data/test_filtered \
@@ -67,8 +67,8 @@ if [ $stage -le 3 ]; then
             -load_model_file exp/model.init.torch \
             \
             -optim_start_lr 0.001 \
-            -optim_soft_coefficient 2000 \
-            -epoch 150 \
+            -optim_soft_coefficient 2500 \
+            -epoch 200 \
             -batch_size 90 \
             -save_model_dir exp/model-$time \
             -use_gpu || exit 1
