@@ -34,19 +34,18 @@ def get_attn_padding_mask(seq_q, seq_k):
 
     return pad_attn_mask
 
-def get_attn_subsequent_mask(seq):
-    ''' Get an attention mask to avoid using the subsequent info.'''
-    ''' length limited the attention, use for sequence to reduce the context dependent length '''
+def get_attn_subsequent_mask(seq, start, end):
+    '''function for generating time restrict mask.'''
     assert seq.dim() == 2
     attn_shape = (seq.size(0), seq.size(1), seq.size(1))
-    subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    #length_mask = 1 - np.triu(np.ones(attn_shape), k=1-atten_length).astype('uint8')
-    #subsequent_mask = subsequent_mask + length_mask
-    subsequent_mask = torch.from_numpy(subsequent_mask)
 
+    mask_start = 1 - np.triu(np.ones(attn_shape), k=start).astype('uint8')
+    mask_end = np.triu(np.ones(attn_shape), k=end + 1).astype('uint8')
+    mask = mask_start + mask_end
+    mask = torch.from_numpy(mask)
     if seq.is_cuda:
-        subsequent_mask = subsequent_mask.cuda()
-    return subsequent_mask
+        mask = mask.cuda()
+    return mask
 
 def fold_seq_and_mask(seq, pad_mask, fold):
     if fold == 1:
@@ -67,10 +66,11 @@ def fold_seq_and_mask(seq, pad_mask, fold):
 class Encoder(nn.Module):
     ''' A encoder model with self attention mechanism. '''
     def __init__(
-            self, n_src_dim, encoder_max_len, n_layers=6, n_head=8,
+            self, n_src_dim, encoder_max_len, n_layers=6, n_head=8, sub_sequence=(-1,1),
             d_k=64, d_v=64, d_model=512, d_inner_hid=1024, dropout=0.1):
 
         super(Encoder, self).__init__()
+        self.sub = sub_sequence
 
         self.d_model = d_model
         self.dropout = nn.Dropout(dropout)
@@ -104,7 +104,7 @@ class Encoder(nn.Module):
         enc_output = self.dropout(enc_output)
 
         enc_slf_attn_pad_mask = get_attn_padding_mask(src_pad_mask, src_pad_mask)
-        enc_slf_attn_sub_mask = get_attn_subsequent_mask(src_pad_mask)
+        enc_slf_attn_sub_mask = get_attn_subsequent_mask(src_pad_mask, self.sub[0], self.sub[1])
         enc_slf_attn_mask = torch.gt(enc_slf_attn_pad_mask + enc_slf_attn_sub_mask, 0)
 
         for enc_layer in self.layer_stack:
@@ -123,10 +123,12 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     ''' A decoder model with self attention mechanism. '''
     def __init__(
-            self, n_tgt_vocab, decoder_max_len, n_layers=6, n_head=8,
+            self, n_tgt_vocab, decoder_max_len, n_layers=6, n_head=8, sub_sequence=(-1,1),
             d_k=64, d_v=64, d_model=512, d_inner_hid=1024, dropout=0.1):
 
         super(Decoder, self).__init__()
+        self.sub = sub_sequence
+
         self.d_model = d_model
         self.dropout = nn.Dropout(dropout)
         self.position_enc = nn.Embedding(decoder_max_len, d_model, padding_idx=constants.PAD)
@@ -149,10 +151,9 @@ class Decoder(nn.Module):
 
         # Decode
         dec_slf_attn_pad_mask = get_attn_padding_mask(tgt_pad_mask, tgt_pad_mask)
-        dec_slf_attn_sub_mask = get_attn_subsequent_mask(tgt_pad_mask)
+        dec_slf_attn_sub_mask = get_attn_subsequent_mask(tgt_pad_mask, self.sub[0], self.sub[1])
         dec_slf_attn_mask = torch.gt(dec_slf_attn_pad_mask + dec_slf_attn_sub_mask, 0)
         dec_enc_attn_pad_mask = get_attn_padding_mask(tgt_pad_mask, src_pad_mask)
-
         if return_attns:
             dec_slf_attns, dec_enc_attns = [], []
 
@@ -185,11 +186,11 @@ class Transformer(nn.Module):
 
         self.src_fold = src_fold
         self.encoder = Encoder(
-            n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, n_layers=n_layers, n_head=n_head,
-            d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
+            n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, sub_sequence=(-100,0),
+            n_layers=n_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
         self.decoder = Decoder(
-            n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, n_layers=n_layers, n_head=n_head,
-            d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
+            n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-1000,0),
+            n_layers=n_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
 
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
