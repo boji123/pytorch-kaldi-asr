@@ -179,7 +179,7 @@ class Decoder(nn.Module):
 class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
-            self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len, src_fold=1,
+            self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len, src_fold=1, encoder_sub_sequence=(-100,0), decoder_sub_sequence=(-20,0),
             n_layers=6, n_head=8, d_model=512, d_inner_hid=1024, d_k=64, d_v=64, dropout=0.1):
 
         super(Transformer, self).__init__()

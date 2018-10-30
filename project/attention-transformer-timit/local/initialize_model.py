@@ -45,6 +45,8 @@ def main():
         encoder_max_len=opt.encoder_max_len,
         decoder_max_len=opt.decoder_max_len,
         src_fold=opt.src_fold,
+        encoder_sub_sequence=(-100,0),
+        decoder_sub_sequence=(-20,0),
         n_layers=opt.n_layers,
         n_head=opt.n_head,
         d_model=opt.d_model,
