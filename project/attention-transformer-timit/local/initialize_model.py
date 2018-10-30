@@ -7,6 +7,18 @@ import kaldi_io
 import torch
 from transformer.Models import Transformer
 
+def str2tuple(str):
+    if str[0] == '(' and str[-1] == ')':
+        arr = tuple(int(i) for i in str[1:-1].split(','))
+        if len(arr) == 2:
+            return arr
+        else:
+            print('[ERROR] invalid sub-sequence length!')
+            exit(1)
+    else:
+        print('[ERROR] invalid sub-sequence string!')
+        exit(1)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-read_feats_scp_file', required=True)
@@ -15,6 +27,8 @@ def main():
     parser.add_argument('-encoder_max_len', type=int, required=True)
     parser.add_argument('-decoder_max_len', type=int, required=True)
     parser.add_argument('-src_fold', type=int, default=1)
+    parser.add_argument('-encoder_sub_sequence', default='(-100,0)')
+    parser.add_argument('-decoder_sub_sequence', default='(-20,0)')
 
     parser.add_argument('-n_layers', type=int, default=6)
     parser.add_argument('-n_head', type=int, default=8)
@@ -27,6 +41,8 @@ def main():
     parser.add_argument('-save_model_file', required=True)
     opt = parser.parse_args()
     
+    opt.encoder_sub_sequence = str2tuple(opt.encoder_sub_sequence)
+    opt.decoder_sub_sequence = str2tuple(opt.decoder_sub_sequence)
 
     for key,matrix in kaldi_io.read_mat_scp(opt.read_feats_scp_file):
         opt.src_dim = matrix.shape[1]

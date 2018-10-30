@@ -44,6 +44,8 @@ if [ $stage -le 2 ]; then
         -encoder_max_len 500 \
         -decoder_max_len 100 \
         -src_fold 2 \
+        -encoder_sub_sequence '(-100,0)' \
+        -decoder_sub_sequence '(-20,0)' \
         \
         -n_layers 2 \
         -n_head 3 \
@@ -55,7 +57,7 @@ if [ $stage -le 2 ]; then
 
 fi
 
-use_gpu=true
+use_gpu=false
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     time=$(date "+%Y%m%d-%H%M%S")
