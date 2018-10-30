@@ -186,10 +186,10 @@ class Transformer(nn.Module):
 
         self.src_fold = src_fold
         self.encoder = Encoder(
-            n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, sub_sequence=(-50,0),
+            n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, sub_sequence=(-100,0),
             n_layers=n_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
         self.decoder = Decoder(
-            n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-10,0),
+            n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
             n_layers=n_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
 
     def get_trainable_parameters(self):
