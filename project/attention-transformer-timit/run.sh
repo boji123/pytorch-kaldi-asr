@@ -53,17 +53,17 @@ if [ $stage -le 2 ]; then
         -d_inner_hid 256 \
         -d_k 64 \
         -d_v 64 \
-        -dropout 0.2 \
+        -dropout 0.25 \
 
 fi
 
-use_gpu=false
+use_gpu=true
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     time=$(date "+%Y%m%d-%H%M%S")
     if $use_gpu; then
         mkdir -p exp/model-$time
-        $cuda_cmd train.5500_2.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.9500.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
@@ -71,8 +71,8 @@ if [ $stage -le 3 ]; then
             -load_model_file exp/model.init \
             \
             -optim_start_lr 0.001 \
-            -optim_soft_coefficient 5500 \
-            -epoch 250 \
+            -optim_soft_coefficient 9500 \
+            -epoch 300 \
             -batch_size 90 \
             -save_model_dir exp/model-$time \
             -use_gpu || exit 1
