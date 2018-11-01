@@ -14,7 +14,7 @@ set -e # exit on error
 #------------------------------------------------------------
 stage=2
 #data_perfix=
-data_perfix=_hires
+data_perfix=_sp_hires
 if [ $stage -le 0 ]; then
     echo '[PROCEDURE] preparing instances.'
     max_len=500
@@ -63,7 +63,7 @@ if [ $stage -le 3 ]; then
     time=$(date "+%Y%m%d-%H%M%S")
     if $use_gpu; then
         mkdir -p exp/model-$time
-        $cuda_cmd train.14000.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.9500.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
@@ -71,8 +71,8 @@ if [ $stage -le 3 ]; then
             -load_model_file exp/model.init \
             \
             -optim_start_lr 0.001 \
-            -optim_soft_coefficient 14000 \
-            -epoch 300 \
+            -optim_soft_coefficient 9500 \
+            -epoch 200 \
             -batch_size 90 \
             -save_model_dir exp/model-$time \
             -use_gpu || exit 1
