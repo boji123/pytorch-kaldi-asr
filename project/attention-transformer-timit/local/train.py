@@ -78,10 +78,13 @@ def get_performance(crit, pred, goal, smoothing=False, num_class=None):
     return loss, n_correct
 
 
-def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = False):
+def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', batch_eval = 10, use_gpu = False):
     if mode == 'train':
         model.train()
     elif mode == 'eval':
+        #batch_eval is setted specially for training set
+        #so we don't need to eval the whole set
+        batch_eval_count = 0
         model.eval()
     else:
         print('[ERROR] invalid epoch mode')
@@ -136,6 +139,11 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', use_gpu = 
         n_total_correct += n_correct
         total_loss += loss.data[0]
 
+        if mode == 'eval':
+            batch_eval_count += 1
+            if batch_eval_count == batch_eval:
+                break
+
     return total_loss/n_total_words, n_total_correct/n_total_words
 
 
@@ -151,9 +159,10 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
 
         #eval the training result(after dropout off)
         start = time.time()
-        valid_loss, valid_accu = train_epoch(model, train_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
-        print('[INFO]-----(evaluating train set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
-            .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
+        eval_batch_num = 10
+        valid_loss, valid_accu = train_epoch(model, train_data, crit, optimizer, mode = 'eval', batch_eval = eval_batch_num, use_gpu = opt.use_gpu)
+        print('[INFO]-----(evaluating train set for {} batch)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
+            .format(eval_batch_num, math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
 
         start = time.time()
         valid_loss, valid_accu = train_epoch(model, dev_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
