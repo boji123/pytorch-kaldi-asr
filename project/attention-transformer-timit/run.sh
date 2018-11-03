@@ -14,11 +14,13 @@ set -e # exit on error
 #------------------------------------------------------------
 stage=2
 #data_perfix=
-data_perfix=_sp_hires
+data_perfix=_hires
+#speed_perturb=
+speed_perturb=_sp
 if [ $stage -le 0 ]; then
     echo '[PROCEDURE] preparing instances.'
     max_len=500
-    for dataset in train${data_perfix} dev${data_perfix} test${data_perfix}; do
+    for dataset in train${speed_perturb}${data_perfix} dev${speed_perturb}${data_perfix} test${speed_perturb}${data_perfix}; do
         #feat-to-len is a kaldi src file, you need to export the path
         feat-to-len scp:data/$dataset/feats.scp ark,t:data/$dataset/feats.length
         #require feats.scp feats.length text
@@ -30,14 +32,14 @@ fi
 if [ $stage -le 1 ]; then
     echo '[PROCEDURE] preparing vocabulary for output label'
     mkdir -p exp
-    python3 local/prepare_vocab.py -read_instances_file data/train${data_perfix}/text -save_vocab_file exp/vocab.torch
+    python3 local/prepare_vocab.py -read_instances_file data/train${speed_perturb}${data_perfix}/text -save_vocab_file exp/vocab.torch
 fi
 
 if [ $stage -le 2 ]; then
     echo '[PROCEDURE] reading dimension from data file and initialize the model'
     #read_feats_scp_file and read_vocab_file for initializing the input and output dimension
     PYTHONIOENCODING=utf-8 python3 local/initialize_model.py \
-        -read_feats_scp_file data/train${data_perfix}_filtered/feats.scp \
+        -read_feats_scp_file data/train${speed_perturb}${data_perfix}_filtered/feats.scp \
         -read_vocab_file exp/vocab.torch \
         -save_model_file exp/model.init \
         \
@@ -63,30 +65,31 @@ if [ $stage -le 3 ]; then
     time=$(date "+%Y%m%d-%H%M%S")
     if $use_gpu; then
         mkdir -p exp/model-$time
-        $cuda_cmd train.9500.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
-            -read_train_dir data/train${data_perfix}_filtered \
+        #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
+        $cuda_cmd train.d100004.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+            -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
             -read_vocab_file exp/vocab.torch \
             -load_model_file exp/model.init \
             \
             -optim_start_lr 0.001 \
-            -optim_soft_coefficient 9500 \
+            -optim_soft_coefficient 10000 \
             -epoch 200 \
             -batch_size 90 \
             -save_model_dir exp/model-$time \
             -use_gpu || exit 1
     else
         PYTHONIOENCODING=utf-8 python3 -u local/train.py \
-            -read_train_dir data/train${data_perfix}_filtered \
+            -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
             -read_vocab_file exp/vocab.torch \
             -load_model_file exp/model.init \
             \
             -optim_start_lr 0.001 \
-            -optim_soft_coefficient 1000 \
-            -epoch 50 \
+            -optim_soft_coefficient 5000 \
+            -epoch 1 \
             -batch_size 90 \
             -save_model_dir exp/model-$time || exit 1
     fi
