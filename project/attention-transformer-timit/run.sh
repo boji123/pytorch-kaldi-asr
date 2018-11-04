@@ -37,11 +37,14 @@ fi
 
 if [ $stage -le 2 ]; then
     echo '[PROCEDURE] reading dimension from data file and initialize the model'
+    time=$(date "+%Y%m%d-%H%M%S")
+    model_dir = exp/model-$time
+    mkdir -p $model_dir
     #read_feats_scp_file and read_vocab_file for initializing the input and output dimension
     PYTHONIOENCODING=utf-8 python3 local/initialize_model.py \
         -read_feats_scp_file data/train${speed_perturb}${data_perfix}_filtered/feats.scp \
         -read_vocab_file exp/vocab.torch \
-        -save_model_file exp/model.init \
+        -save_model_file ${model_dir}/model.init \
         \
         -encoder_max_len 500 \
         -decoder_max_len 100 \
@@ -62,22 +65,20 @@ fi
 use_gpu=true
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
-    time=$(date "+%Y%m%d-%H%M%S")
     if $use_gpu; then
-        mkdir -p exp/model-$time
         #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
         $cuda_cmd train.d100004.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
             -read_vocab_file exp/vocab.torch \
-            -load_model_file exp/model.init \
+            -load_model_file ${model_dir}/model.init \
             \
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 10000 \
             -epoch 200 \
             -batch_size 90 \
-            -save_model_dir exp/model-$time \
+            -save_model_dir $model_dir \
             -use_gpu || exit 1
     else
         PYTHONIOENCODING=utf-8 python3 -u local/train.py \
@@ -85,13 +86,13 @@ if [ $stage -le 3 ]; then
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
             -read_vocab_file exp/vocab.torch \
-            -load_model_file exp/model.init \
+            -load_model_file ${model_dir}/model.init \
             \
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 5000 \
             -epoch 1 \
             -batch_size 90 \
-            -save_model_dir exp/model-$time || exit 1
+            -save_model_dir $model_dir || exit 1
     fi
     echo '[INFO]trainning finish.'
 fi
