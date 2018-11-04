@@ -50,7 +50,7 @@ def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file
 
     #in batch loader, trainning feature will be loaded while itering
     #it increase io but decrease memory use
-    batch_loader = BatchLoader(trainning_triples, batch_size, print_info = False)
+    batch_loader = BatchLoader(trainning_triples, batch_size, pre_load = True, print_info = False)
     return batch_loader
 
 

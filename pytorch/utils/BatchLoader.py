@@ -25,14 +25,6 @@ class BatchLoader():
         if self.print_info:
             print('[INFO] loader initialized. data size:{}, batch_size:{}, iter per epoch:{}.'
                 .format(len(self.trainning_triples), self.batch_size, self.num_batch))
-        '''
-        self.condition = threading.Condition()
-        self.thread = None
-        self.thread_stop_flag = False
-        self.thread_index_start = 0
-        self.thread_index_end = 0
-        self.thread_next_batch = None
-        '''
 
 
     def load_batch_data(self, start, end):
@@ -42,22 +34,36 @@ class BatchLoader():
             triples = (triples[0], mat, triples[2])
             batch.append(triples)
         return batch
-
     '''
-    def thread_load_batch_data(self):
-        while self.thread_stop_flag == False:
-            self.condition.acquire()
-            if self.thread_next_batch == None:
-                if self.print_info:
-                    start_time = time.time()
+    #pad instances to the longest one, making instances to same length
+    #so then they can be trained parallely
+    #should ensure that instances is array of numpy format
+    #etc: [array(...), array(...)] -> array[[...],[...]]
+    #it can used to pad both 2-d or 1-d array
+    def pad_to_longest(instances):
+        max_len = max(len(instance) for instance in instances)
+        dim = len(instances[0].shape)
 
-                self.thread_next_batch = self.load_batch_data(self.thread_index_start, self.thread_index_end)
+        inst_data = []
+        pad_masks = []
+        for instance in instances:
+            pad_length = max_len - len(instance)
+            pad_mask = np.ones(len(instance))
+            pad_mask = np.pad(pad_mask, (0,pad_length), 'constant', constant_values = (0,constants.PAD))
+            pad_masks.append(pad_mask)
 
-                if self.print_info:
-                    print('[INFO] iter {}: data loaded. loading cost {:3.2f} seconds'.format(self.curr_iter, time.time() - start_time))
-            self.condition.wait();
+            if dim == 1: #usually label
+                instance = np.pad(instance, (0,pad_length), 'constant', constant_values = (0,constants.PAD))
+            elif dim == 2: #usually feature
+                instance = np.pad(instance, ((0,pad_length),(0,0)), 'constant', constant_values = ((0,constants.PAD),(0,0)))
+            else:
+                print('[ERROR] undefined padding shape')
+                exit(0)
+            inst_data.append(instance)
+        pad_masks = np.array(pad_masks, dtype=int)
+        inst_data = np.array(inst_data)
+        return inst_data, pad_masks
     '''
-
     def __iter__(self):
         self.curr_iter = 0
         random.shuffle(self.trainning_triples)
@@ -66,23 +72,6 @@ class BatchLoader():
             print('[INFO] script list is shuffled')
         return self
 
-        '''
-        random.shuffle(self.trainning_triples)
-
-        self.thread = threading.Thread(target=self.thread_load_batch_data)
-        self.thread_stop_flag = False
-        #set the index of initial batch for loading thread
-        self.curr_iter = 0
-        self.thread_index_start = self.curr_iter * self.batch_size
-        self.thread_index_end = self.thread_index_start + self.batch_size
-        self.thread_next_batch = None
-
-        self.thread.start()
-
-        if self.print_info:
-            print('[INFO] script list is shuffled')
-        return self
-        '''
 
     def __next__(self):
         if self.curr_iter < self.num_batch:
@@ -102,36 +91,3 @@ class BatchLoader():
         else:
             #will ignore the rest of data
             raise StopIteration()
-
-        '''
-        if self.curr_iter < self.num_batch:
-            #to ensure the data is exist
-            while self.thread_next_batch == None:
-                continue
-            self.condition.acquire()
-            batch = self.thread_next_batch
-            #set the index of next batch for loading thread
-            self.curr_iter += 1
-            self.thread_index_start = self.curr_iter * self.batch_size
-            self.thread_index_end = self.thread_index_start + self.batch_size
-            self.thread_next_batch = None
-            self.condition.notify()
-            self.condition.release()
-            return batch
-
-        elif self.curr_iter == self.num_batch:
-            #to ensure the data is exist
-            while self.thread_next_batch == None:
-                continue
-            self.condition.acquire()
-            batch = self.thread_next_batch
-            self.thread_next_batch = None
-            self.thread_stop_flag = True
-            self.condition.notify()
-            self.condition.release()
-            self.thread.join()
-            return batch
-
-        else:
-            raise StopIteration()
-        '''
