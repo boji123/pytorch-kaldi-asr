@@ -205,6 +205,13 @@ def main():
 
     print('[PROCEDURE] prepare trainning.')
 
+
+    checkpoint = torch.load(opt.load_model_file)
+    model = checkpoint['model']
+    model_options = checkpoint['model_options']
+    print('[INFO] loading model with parameter: {}'.format(model_options))
+
+
     print('[INFO] reading training data...')
     train_data = initialize_batch_loader(opt.read_train_dir + '/feats.scp', opt.read_train_dir + '/text', opt.read_vocab_file, opt.batch_size)
 
@@ -214,12 +221,6 @@ def main():
     print('[INFO] reading test data...')
     test_data = initialize_batch_loader(opt.read_test_dir + '/feats.scp', opt.read_test_dir + '/text', opt.read_vocab_file, opt.batch_size)
     print('[INFO] batch loader is initialized')
-
-
-    checkpoint = torch.load(opt.load_model_file)
-    model = checkpoint['model']
-    model_options = checkpoint['model_options']
-    print('[INFO] loading model with parameter: {}'.format(model_options))
 
 
     def get_criterion(vocab_size):
