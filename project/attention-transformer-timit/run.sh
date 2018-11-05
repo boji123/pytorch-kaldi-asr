@@ -38,7 +38,7 @@ fi
 if [ $stage -le 2 ]; then
     echo '[PROCEDURE] reading dimension from data file and initialize the model'
     time=$(date "+%Y%m%d-%H%M%S")
-    model_dir = exp/model-$time
+    model_dir=exp/model-$time
     mkdir -p $model_dir
     #read_feats_scp_file and read_vocab_file for initializing the input and output dimension
     PYTHONIOENCODING=utf-8 python3 local/initialize_model.py \
@@ -47,7 +47,7 @@ if [ $stage -le 2 ]; then
         -save_model_file ${model_dir}/model.init \
         \
         -encoder_max_len 500 \
-        -decoder_max_len 100 \
+        -decoder_max_len 80 \
         -src_fold 2 \
         -encoder_sub_sequence '(-100,0)' \
         -decoder_sub_sequence '(-20,0)' \
@@ -67,7 +67,7 @@ if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     if $use_gpu; then
         #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
-        $cuda_cmd train.d100004.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.d25.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
