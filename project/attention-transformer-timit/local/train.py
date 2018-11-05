@@ -104,9 +104,7 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', batch_eval
         # warning: embedding require long tensor, maybe it's a waste of menory, waiting to be solved
         tgt_seq = torch.LongTensor(tgt_seq) #batch * max length in batch * padded index dim
         tgt_pad_mask = torch.ByteTensor(tgt_pad_mask) #batch * maxlength in batch * bool mask dim
-        print(src_seq.size())
-        print(tgt_seq.size())
-        exit(0)
+
         if use_gpu:
             src_seq = src_seq.cuda()
             src_pad_mask = src_pad_mask.cuda()
