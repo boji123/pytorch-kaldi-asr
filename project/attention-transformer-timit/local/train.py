@@ -147,7 +147,9 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', batch_eval
 
 
 def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options):
-    valid_accus = []
+    train_start_time = time.time()
+    best_epoch = 0
+    best_accu = 0
     for epoch in range(1, opt.epoch + 1):
         print('[INFO] trainning epoch {}.'.format(epoch))
 
@@ -168,6 +170,10 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
         print('[INFO]-----(evaluating dev set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
 
+        if valid_accu > best_accu:
+            best_accu = valid_accu
+            best_epoch = epoch
+
         start = time.time()
         valid_loss, valid_accu = train_epoch(model, test_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
         print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
@@ -179,9 +185,11 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
         'epoch': epoch,
         'train_options': opt}
 
-        valid_accus += [valid_accu]
         model_name = opt.save_model_dir + '/epoch{}.accu_{:3.2f}.torch'.format(epoch, 100*valid_accu)
         torch.save(checkpoint, model_name)
+
+    print('[INFO] trainning finish.\n\ttime consume: {:3.2f} minute\n\tbest valid accuracy: {:3.2f} %, on epoch {}'
+        .format((time.time()-train_start_time)/60, 100*best_accu, best_epoch))
 
 
 def main():
