@@ -53,7 +53,7 @@ def main():
     opt.tgt_vocab_dim = len(word2idx)
     print('[INFO] get label of dimension {} from {}.'.format(opt.tgt_vocab_dim, opt.read_vocab_file))
 
-    print('[INFO] model will initialized with add_argument:\n{}.'.format(opt))
+    print('[INFO] model will initialized with add_argument:\n\t{}.'.format(opt))
 
     model = Transformer(
         opt.src_dim,
