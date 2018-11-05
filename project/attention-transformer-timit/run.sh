@@ -67,7 +67,7 @@ if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     if $use_gpu; then
         #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
-        $cuda_cmd train.d25.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.drop25.log CUDA_VISIBLE_DEVICES=0 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
