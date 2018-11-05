@@ -21,6 +21,7 @@ export KALDI_ROOT=$HOME/my_kaldi_root
 
 
 作者运行环境
-
+```
 pytorch 0.4.1
 python 3.6.5
+```
