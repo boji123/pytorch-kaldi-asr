@@ -18,3 +18,9 @@ export KALDI_ROOT=$HOME/my_kaldi_root
 
 要创建自己的项目，请进入project目录，拷贝一份example_project
 里面的run.sh会指导你如何使用该项目的脚本
+
+
+作者运行环境
+
+pytorch 0.4.1
+python 3.6.5
