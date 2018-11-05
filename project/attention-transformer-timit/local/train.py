@@ -1,12 +1,12 @@
 #author: baiji
 #main trainning procedure for end to end transformoer based asr system
 import argparse
+import time
+import math
+from tqdm import tqdm
+
 from utils import instances_handler
 from utils.BatchLoader import BatchLoader
-import time
-from tqdm import tqdm
-import math
-import numpy as np
 from utils import constants
 
 import torch
@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 from transformer.Models import Transformer
 from transformer.Optim import ScheduledOptim
-from torch.autograd import Variable
+
 
 def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file, batch_size):
     utterances = {}
@@ -94,19 +94,19 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', batch_eval
 
 
     for batch in tqdm(batch_loader, mininterval=2, desc='({})'.format(mode)):
-        # prepare data
-        #key = [triples[0] for triples in batch]
-        src = [triples[1] for triples in batch]
-        tgt = [triples[2] for triples in batch]
+        src_seq = batch[1]
+        src_pad_mask = batch[2]
+        tgt_seq = batch[3]
+        tgt_pad_mask = batch[4]
 
-        src_seq, src_pad_mask = instances_handler.pad_to_longest(src)
-        tgt_seq, tgt_pad_mask = instances_handler.pad_to_longest(tgt)
-
-        src_seq = Variable(torch.FloatTensor(src_seq)) #batch * max length in batch * padded feature dim
-        src_pad_mask = Variable(torch.LongTensor(src_pad_mask)) #batch * maxlength in batch * bool mask dim
-        tgt_seq = Variable(torch.LongTensor(tgt_seq)) #batch * max length in batch * padded index dim
-        tgt_pad_mask = Variable(torch.LongTensor(tgt_pad_mask)) #batch * maxlength in batch * bool mask dim
-
+        src_seq = torch.FloatTensor(src_seq) #batch * max length in batch * padded feature dim
+        src_pad_mask = torch.ByteTensor(src_pad_mask) #batch * maxlength in batch * bool mask dim
+        # warning: embedding require long tensor, maybe it's a waste of menory, waiting to be solved
+        tgt_seq = torch.LongTensor(tgt_seq) #batch * max length in batch * padded index dim
+        tgt_pad_mask = torch.ByteTensor(tgt_pad_mask) #batch * maxlength in batch * bool mask dim
+        print(src_seq.size())
+        print(tgt_seq.size())
+        exit(0)
         if use_gpu:
             src_seq = src_seq.cuda()
             src_pad_mask = src_pad_mask.cuda()
@@ -137,14 +137,15 @@ def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', batch_eval
         n_words = goal.data.ne(constants.PAD).sum()
         n_total_words += n_words
         n_total_correct += n_correct
-        total_loss += loss.data[0]
+
+        total_loss += loss.data
 
         if mode == 'eval':
             batch_eval_count += 1
             if batch_eval_count == batch_eval:
                 break
 
-    return total_loss/n_total_words, n_total_correct/n_total_words
+    return float(total_loss)/int(n_total_words), float(n_total_correct)/int(n_total_words)
 
 
 def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options):
@@ -209,7 +210,7 @@ def main():
     checkpoint = torch.load(opt.load_model_file)
     model = checkpoint['model']
     model_options = checkpoint['model_options']
-    print('[INFO] loading model with parameter: {}'.format(model_options))
+    print('[INFO] loading model with parameter:\n\t{}'.format(model_options))
 
 
     print('[INFO] reading training data...')
@@ -227,23 +228,22 @@ def main():
         ''' With PAD token zero weight '''
         weight = torch.ones(vocab_size)
         weight[constants.PAD] = 0
-        return nn.CrossEntropyLoss(weight, size_average=False)
+        return nn.CrossEntropyLoss(weight, reduction='sum')
     vocab_size = len(torch.load(opt.read_vocab_file))
     crit = get_criterion(vocab_size)
     print('[INFO] using cross entropy loss.')
 
     optimizer = ScheduledOptim(
-        optim.Adam(filter(lambda p: p.requires_grad,model.get_trainable_parameters()),
+        optim.Adam(model.parameters(),
             betas=(0.9, 0.98), eps=1e-09),
         start_lr = opt.optim_start_lr,
         soft_coefficient = opt.optim_soft_coefficient)
-
     print('[INFO] using adam as optimizer.')
 
     print('[PROCEDURE] trainning start...')
     if opt.use_gpu:
-        model.cuda()
-        crit.cuda()
+        model = model.cuda()
+        crit = crit.cuda()
     train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options)
 
 
