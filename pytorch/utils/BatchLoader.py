@@ -1,16 +1,20 @@
 import kaldi_io
 import random
 import time
-
-import threading
-
+from utils import instances_handler
+import numpy as np
+import torch
 #one should zipped the trainning source and target befor handled by batch loader
 #batch loader is a iterator, can be call by for loop
 class BatchLoader():
     #triples: list of tuple (key, path of utterances, label)
     #feats will be loaded when itering the batch.
     def __init__(self, trainning_triples, batch_size, pre_load = True, print_info = True):
-        self.trainning_triples = trainning_triples
+        self.data = {}
+        self.data['key'] = [triples[0] for triples in trainning_triples]
+        self.data['src_seq'] = [triples[1] for triples in trainning_triples]
+        self.data['tgt_seq'] = [triples[2] for triples in trainning_triples]
+
         self.batch_size = batch_size
         self.curr_iter = 0
         self.num_batch = int(len(trainning_triples)/batch_size)
@@ -19,7 +23,9 @@ class BatchLoader():
 
         #can speed up the training when data batch is small enough
         if self.pre_load:
-            self.trainning_triples = self.load_batch_data(0,len(trainning_triples))
+            self.data['src_seq'] = self.load_batch_data(0, len(trainning_triples))
+            self.data['src_seq'], self.data['src_pad_mask'] = instances_handler.pad_to_longest(self.data['src_seq'])
+            self.data['tgt_seq'], self.data['tgt_pad_mask'] = instances_handler.pad_to_longest(self.data['tgt_seq'])
             print('[INFO] data preloaded.')
 
         if self.print_info:
@@ -29,44 +35,27 @@ class BatchLoader():
 
     def load_batch_data(self, start, end):
         batch = []
-        for triples in self.trainning_triples[start:end]:
-            mat = kaldi_io.read_mat(triples[1])
-            triples = (triples[0], mat, triples[2])
-            batch.append(triples)
+        for scripts in self.data['src_seq'][start:end]:
+            mat = kaldi_io.read_mat(scripts)
+            batch.append(mat)
         return batch
-    '''
-    #pad instances to the longest one, making instances to same length
-    #so then they can be trained parallely
-    #should ensure that instances is array of numpy format
-    #etc: [array(...), array(...)] -> array[[...],[...]]
-    #it can used to pad both 2-d or 1-d array
-    def pad_to_longest(instances):
-        max_len = max(len(instance) for instance in instances)
-        dim = len(instances[0].shape)
 
-        inst_data = []
-        pad_masks = []
-        for instance in instances:
-            pad_length = max_len - len(instance)
-            pad_mask = np.ones(len(instance))
-            pad_mask = np.pad(pad_mask, (0,pad_length), 'constant', constant_values = (0,constants.PAD))
-            pad_masks.append(pad_mask)
 
-            if dim == 1: #usually label
-                instance = np.pad(instance, (0,pad_length), 'constant', constant_values = (0,constants.PAD))
-            elif dim == 2: #usually feature
-                instance = np.pad(instance, ((0,pad_length),(0,0)), 'constant', constant_values = ((0,constants.PAD),(0,0)))
-            else:
-                print('[ERROR] undefined padding shape')
-                exit(0)
-            inst_data.append(instance)
-        pad_masks = np.array(pad_masks, dtype=int)
-        inst_data = np.array(inst_data)
-        return inst_data, pad_masks
-    '''
     def __iter__(self):
         self.curr_iter = 0
-        random.shuffle(self.trainning_triples)
+        if self.pre_load:
+            temp = list(zip(self.data['key'], self.data['src_seq'], self.data['src_pad_mask'], self.data['tgt_seq'], self.data['tgt_pad_mask']))
+            random.shuffle(temp)
+            self.data['key'], self.data['src_seq'], self.data['src_pad_mask'], self.data['tgt_seq'], self.data['tgt_pad_mask'] = zip(*temp)
+            self.data['src_seq'] = np.array(self.data['src_seq'])
+            self.data['src_pad_mask'] = np.array(self.data['src_pad_mask'])
+            self.data['tgt_seq'] = np.array(self.data['tgt_seq'])
+            self.data['tgt_pad_mask'] = np.array(self.data['tgt_pad_mask'])
+        else:
+            temp = list(zip(self.data['key'], self.data['src_seq'], self.data['tgt_seq']))
+            random.shuffle(temp)
+            self.data['key'], self.data['src_seq'], self.data['tgt_seq'] = zip(*temp)
+
 
         if self.print_info:
             print('[INFO] script list is shuffled')
@@ -79,15 +68,27 @@ class BatchLoader():
             end = start + self.batch_size
             self.curr_iter += 1
 
+            if self.print_info:
+                start_time = time.time()
+
             #should make a data validation here
-            start_time = time.time()
             if self.pre_load:
-                batch = self.trainning_triples[start:end]
+                batch = (self.data['key'][start:end],
+                        self.data['src_seq'][start:end],
+                        self.data['src_pad_mask'][start:end],
+                        self.data['tgt_seq'][start:end],
+                        self.data['tgt_pad_mask'][start:end])
             else:
-                batch = self.load_batch_data(start, end)
+                key = self.data['key'][start:end]
+                src_seq = self.load_batch_data(start, end)
+                tgt_seq = self.data['tgt_seq'][start:end]
+                src_seq, src_pad_mask = instances_handler.pad_to_longest(src_seq)
+                tgt_seq, tgt_pad_mask = instances_handler.pad_to_longest(tgt_seq)
+                batch = (key, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask)
+
             if self.print_info:
                 print('[INFO] iter {}: data loaded. loading cost {:3.2f} seconds'.format(self.curr_iter, time.time() - start_time))
             return batch
         else:
             #will ignore the rest of data
-            raise StopIteration()
+            raise StopIteration();
