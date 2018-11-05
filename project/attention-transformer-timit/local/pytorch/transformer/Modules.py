@@ -10,7 +10,7 @@ class Linear(nn.Module):
     def __init__(self, d_in, d_out, bias=True):
         super(Linear, self).__init__()
         self.linear = nn.Linear(d_in, d_out, bias=bias)
-        init.xavier_normal(self.linear.weight)
+        init.xavier_normal_(self.linear.weight)
 
     def forward(self, x):
         return self.linear(x)
@@ -27,10 +27,6 @@ class Bottle(nn.Module):
 
 class BottleLinear(Bottle, Linear):
     ''' Perform the reshape routine before and after a linear projection '''
-    pass
-
-class BottleSoftmax(Bottle, nn.Softmax):
-    ''' Perform the reshape routine before and after a softmax operation'''
     pass
 
 class LayerNormalization(nn.Module):
@@ -75,7 +71,6 @@ class ScaledDotProductAttention(nn.Module):
         super(ScaledDotProductAttention, self).__init__()
         self.temper = np.power(d_model, 0.5)
         self.dropout = nn.Dropout(attn_dropout)
-        self.softmax = BottleSoftmax()
 
     def forward(self, q, k, v, attn_mask=None):
 
@@ -89,7 +84,8 @@ class ScaledDotProductAttention(nn.Module):
                     '{}.'.format(attn_mask.size(), attn.size())
 
             attn.data.masked_fill_(attn_mask, -float('inf'))
-        attn = self.softmax(attn)
+            
+        attn = nn.functional.softmax(attn, dim=2)
         #incase condition of all -inf, in this condition, softmax will return nan and cause error
         attn.data.masked_fill_(attn_mask, 0)
         attn = self.dropout(attn)

@@ -6,7 +6,6 @@ from utils import constants
 from transformer.Modules import BottleLinear as Linear
 from transformer.Layers import EncoderLayer, DecoderLayer
 import torch.nn.functional as F
-from torch.autograd import Variable
 __author__ = "Yu-Hsiang Huang"
 
 # further edited by liu.baiji
@@ -77,9 +76,11 @@ class Encoder(nn.Module):
 
         self.position_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
         self.position_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
+        self.position_enc.weight.requires_grad = False
 
         self.trans_pos_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
         self.trans_pos_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
+        self.trans_pos_enc.weight.requires_grad = False
 
         #project the source to dim of model
         self.src_projection = Linear(n_src_dim, d_model, bias=False)
@@ -88,7 +89,7 @@ class Encoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, src_seq, src_pad_mask, return_attns=False):
-        src_pos = Variable(torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1))
+        src_pos = torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1)
         if src_seq.is_cuda:
             src_pos = src_pos.cuda()
         trans_pos = self.trans_pos_enc(src_pos)
@@ -133,6 +134,7 @@ class Decoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.position_enc = nn.Embedding(decoder_max_len, d_model, padding_idx=constants.PAD)
         self.position_enc.weight.data = position_encoding_init(decoder_max_len, d_model)
+        self.position_enc.weight.requires_grad = False
 
         self.tgt_word_emb = nn.Embedding(n_tgt_vocab, d_model, padding_idx=constants.PAD)
         self.tgt_word_proj = Linear(d_model, n_tgt_vocab, bias=False)
@@ -141,12 +143,13 @@ class Decoder(nn.Module):
             for _ in range(n_layers)])
 
     def forward(self, tgt_seq, tgt_pad_mask, src_pad_mask, enc_output, return_attns=False):
-        tgt_pos = Variable(torch.arange(0, tgt_seq.size(1)).long().repeat(tgt_seq.size(0), 1))
+        tgt_pos = torch.arange(0, tgt_seq.size(1)).long().repeat(tgt_seq.size(0), 1)
         if tgt_seq.is_cuda:
             tgt_pos = tgt_pos.cuda()
         tgt_pos = self.position_enc(tgt_pos)
 
         #word -> dim model
+        # warning: embedding require long tensor, maybe it's a waste of menory, waiting to be solved
         tgt_seq = self.tgt_word_emb(tgt_seq)
 
         # Decode
@@ -192,14 +195,6 @@ class Transformer(nn.Module):
             n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
             n_layers=n_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
 
-    def get_trainable_parameters(self):
-        ''' Avoid updating the position encoding '''
-        enc_freezed_param_ids = set(map(id, self.encoder.position_enc.parameters()))
-        dec_freezed_param_ids = set(map(id, self.decoder.position_enc.parameters()))
-        trans_freezed_param_ids = set(map(id, self.encoder.trans_pos_enc.parameters()))
-        freezed_param_ids = enc_freezed_param_ids | dec_freezed_param_ids | trans_freezed_param_ids
-        return (p for p in self.parameters() if id(p) not in freezed_param_ids)
-        #return (p for p in self.parameters())
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):
         #reshape the input and input mask: length/fold, dim*fold

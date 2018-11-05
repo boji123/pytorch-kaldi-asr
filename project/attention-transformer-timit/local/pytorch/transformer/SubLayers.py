@@ -20,9 +20,9 @@ class MultiHeadAttention(nn.Module):
         self.d_k = d_k
         self.d_v = d_v
 
-        self.w_qs = nn.Parameter(torch.FloatTensor(n_head, d_model, d_k))
-        self.w_ks = nn.Parameter(torch.FloatTensor(n_head, d_model, d_k))
-        self.w_vs = nn.Parameter(torch.FloatTensor(n_head, d_model, d_v))
+        self.w_qs = nn.Parameter(torch.FloatTensor(n_head, d_model, d_k), requires_grad=True)
+        self.w_ks = nn.Parameter(torch.FloatTensor(n_head, d_model, d_k), requires_grad=True)
+        self.w_vs = nn.Parameter(torch.FloatTensor(n_head, d_model, d_v), requires_grad=True)
 
         self.attention = ScaledDotProductAttention(d_model, dropout)
         self.layer_norm = LayerNormalization(d_model)
@@ -30,9 +30,9 @@ class MultiHeadAttention(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-        init.xavier_normal(self.w_qs)
-        init.xavier_normal(self.w_ks)
-        init.xavier_normal(self.w_vs)
+        init.xavier_normal_(self.w_qs)
+        init.xavier_normal_(self.w_ks)
+        init.xavier_normal_(self.w_vs)
 
     def forward(self, q, k, v, attn_mask=None):
 
