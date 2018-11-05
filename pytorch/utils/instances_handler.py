@@ -64,6 +64,14 @@ def save_vocab(vocab, vocab_file):
     print('[INFO] vocab_file is saved to {}.'.format(vocab_file))
 
 
+#add BOS and EOS to the instances index
+def add_control_words(instances_index):
+    for key in instances_index:
+        #add two control words
+        instances_index[key] = np.array([constants.BOS_WORD] + instances_index[key] + [constants.EOS_WORD])
+    return instances_index
+
+
 #replace the words by index readed from vocab file, or reconstruct the word index by word
 def apply_vocab(instances, vocab_file, mode):
     word2idx = torch.load(vocab_file)
@@ -82,14 +90,6 @@ def apply_vocab(instances, vocab_file, mode):
 
     print('[INFO] vocab with {} words is applied to label, vocab file is {}.'.format(len(word2idx), vocab_file))
     return applied
-
-
-#add BOS and EOS to the instances index
-def add_control_words(instances_index):
-    for key in instances_index:
-        #add two control words
-        instances_index[key] = np.array([constants.BOS_WORD] + instances_index[key] + [constants.EOS_WORD])
-    return instances_index
 
 
 #pad instances to the longest one, making instances to same length
@@ -117,8 +117,6 @@ def pad_to_longest(instances):
             print('[ERROR] undefined padding shape')
             exit(0)
         inst_data.append(instance)
-
-    pad_masks = np.array(pad_masks, dtype=int)
+    pad_masks = np.array(pad_masks, dtype='uint8')
     inst_data = np.array(inst_data)
-
     return inst_data, pad_masks
