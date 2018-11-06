@@ -79,6 +79,7 @@ if [ $stage -le 3 ]; then
             -epoch 300 \
             -batch_size 90 \
             -save_model_dir $model_dir \
+            -save_interval 10 \
             -use_gpu || exit 1
     else
         PYTHONIOENCODING=utf-8 python3 -u local/train.py \

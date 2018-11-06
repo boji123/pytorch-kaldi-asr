@@ -173,23 +173,33 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
         if valid_accu > best_accu:
             best_accu = valid_accu
             best_epoch = epoch
+            best_model = model
 
         start = time.time()
-        valid_loss, valid_accu = train_epoch(model, test_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
+        test_loss, test_accu = train_epoch(model, test_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
         print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
-            .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
+            .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
 
-        checkpoint = {
-        'model': model,
-        'model_options': model_options,
-        'epoch': epoch,
-        'train_options': opt}
-
-        model_name = opt.save_model_dir + '/epoch{}.accu_{:3.2f}.torch'.format(epoch, 100*valid_accu)
-        torch.save(checkpoint, model_name)
+        if epoch % opt.save_interval == 0:
+            checkpoint = {
+                'model': model,
+                'model_options': model_options,
+                'epoch': epoch,
+                'train_options': opt}
+            model_name = opt.save_model_dir + '/epoch{}.accu{:3.2f}.torch'.format(epoch, 100*valid_accu)
+            torch.save(checkpoint, model_name)
+            print('[INFO] checkpoint of epoch {} is saved to {}'.format(epoch, model_name))
 
     print('[INFO] trainning finish.\n\ttime consume: {:3.2f} minute\n\tbest valid accuracy: {:3.2f} %, on epoch {}'
         .format((time.time()-train_start_time)/60, 100*best_accu, best_epoch))
+    checkpoint = {
+        'model': best_model,
+        'model_options': model_options,
+        'epoch': best_epoch,
+        'train_options': opt}
+    model_name = opt.save_model_dir + '/best.epoch{}.accu{:3.2f}.torch'.format(best_epoch, 100*best_accu)
+    torch.save(checkpoint, model_name)
+    print('[INFO] best model is saved to {}'.format(model_name))
 
 
 def main():
@@ -207,6 +217,7 @@ def main():
     parser.add_argument('-optim_soft_coefficient', type=float, default=1000)
     parser.add_argument('-batch_size', type=int, default=64)
     parser.add_argument('-use_gpu', action='store_true')
+    parser.add_argument('-save_interval', type=int, default=10)
     opt = parser.parse_args()
 
 
