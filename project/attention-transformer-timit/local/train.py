@@ -224,7 +224,7 @@ def main():
     print('[PROCEDURE] prepare trainning.')
 
 
-    checkpoint = torch.load(opt.load_model_file)
+    checkpoint = torch.load(opt.load_model_file, map_location=lambda storage, loc: storage)
     model = checkpoint['model']
     model_options = checkpoint['model_options']
     print('[INFO] loading model with parameter:\n\t{}'.format(model_options))
