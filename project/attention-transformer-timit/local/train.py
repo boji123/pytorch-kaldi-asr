@@ -78,7 +78,7 @@ def get_performance(crit, pred, goal, smoothing=False, num_class=None):
     return loss, n_correct
 
 
-def train_epoch(model, batch_loader, crit, optimizer, mode = 'train', batch_eval = 10, use_gpu = False):
+def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, batch_eval = 10, use_gpu = False):
     if mode == 'train':
         model.train()
     elif mode == 'eval':
@@ -154,19 +154,19 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
         print('[INFO] trainning epoch {}.'.format(epoch))
 
         start = time.time()
-        train_loss, train_accu = train_epoch(model, train_data, crit, optimizer, mode = 'train', use_gpu = opt.use_gpu)
+        train_loss, train_accu = train_epoch(model, train_data, crit, mode = 'train', optimizer = optimizer, use_gpu = opt.use_gpu)
         print('[INFO]-----(Training)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(train_loss, 100)), 100*train_accu, (time.time()-start)/60))
 
         #eval the training result(after dropout off)
         start = time.time()
         eval_batch_num = 10
-        valid_loss, valid_accu = train_epoch(model, train_data, crit, optimizer, mode = 'eval', batch_eval = eval_batch_num, use_gpu = opt.use_gpu)
+        valid_loss, valid_accu = train_epoch(model, train_data, crit, mode = 'eval', batch_eval = eval_batch_num, use_gpu = opt.use_gpu)
         print('[INFO]-----(evaluating train set for {} batch)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(eval_batch_num, math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
 
         start = time.time()
-        valid_loss, valid_accu = train_epoch(model, dev_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
+        valid_loss, valid_accu = train_epoch(model, dev_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
         print('[INFO]-----(evaluating dev set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
 
@@ -176,7 +176,7 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
             best_model = model
 
         start = time.time()
-        test_loss, test_accu = train_epoch(model, test_data, crit, optimizer, mode = 'eval', use_gpu = opt.use_gpu)
+        test_loss, test_accu = train_epoch(model, test_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
         print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
 
@@ -200,6 +200,13 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
     model_name = opt.save_model_dir + '/best.epoch{}.accu{:3.2f}.torch'.format(best_epoch, 100*best_accu)
     torch.save(checkpoint, model_name)
     print('[INFO] best model is saved to {}'.format(model_name))
+
+
+def get_criterion(vocab_size):
+    ''' With PAD token zero weight '''
+    weight = torch.ones(vocab_size)
+    weight[constants.PAD] = 0
+    return nn.CrossEntropyLoss(weight, reduction='sum')
 
 
 def main():
@@ -241,11 +248,6 @@ def main():
     print('[INFO] batch loader is initialized')
 
 
-    def get_criterion(vocab_size):
-        ''' With PAD token zero weight '''
-        weight = torch.ones(vocab_size)
-        weight[constants.PAD] = 0
-        return nn.CrossEntropyLoss(weight, reduction='sum')
     vocab_size = len(torch.load(opt.read_vocab_file))
     crit = get_criterion(vocab_size)
     print('[INFO] using cross entropy loss.')
