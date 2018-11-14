@@ -29,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-read_test_dir', required=True)
     parser.add_argument('-read_vocab_file', required=True)
+    parser.add_argument('-load_model_dir', required=True)
     parser.add_argument('-load_model_file_list', required=True, nargs='+')
     parser.add_argument('-save_model_dir', required=True)
     parser.add_argument('-use_gpu', action='store_true')
@@ -37,7 +38,7 @@ def main():
     print('[PROCEDURE] combining model with model averaging...')
     models = []
     for file in opt.load_model_file_list:
-        checkpoint = torch.load(file, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(opt.load_model_dir + '/' + file, map_location=lambda storage, loc: storage)
         train_options = checkpoint['train_options']
         models.append(checkpoint['model'])
 
