@@ -9,10 +9,13 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-4.local -l gpu=1,io=0"
 set -e # exit on error
 #------------------------------------------------------------
-stage=2
+use_gpu=true
+cuda_device=3
+#------------------------------------------------------------
+stage=4
 #data_perfix=
 data_perfix=_hires
 #speed_perturb=
@@ -62,12 +65,12 @@ if [ $stage -le 2 ]; then
 
 fi
 
-use_gpu=true
+
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     if $use_gpu; then
         #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
-        $cuda_cmd train.lr20000d25ep5004.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train.lr20000d25ep5004.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
@@ -95,12 +98,37 @@ if [ $stage -le 3 ]; then
             -batch_size 90 \
             -save_model_dir $model_dir || exit 1
     fi
-    echo '[INFO]trainning finish.'
+    echo '[INFO] trainning finish.'
 fi
 
-exit 0
 
 if [ $stage -le 4 ]; then
+    echo '[PROCEDURE] combining model... log is in combine.log'
+    num_combine=10
+    #model_dir=
+    model_list=`ls ${model_dir} --sort=time | grep ^epoch.*.torch$ | head -${num_combine}`
+
+    if $use_gpu; then
+        $cuda_cmd combine.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
+            -read_test_dir data/dev_hires_filtered \
+            -read_vocab_file exp/vocab.torch \
+            -load_model_dir $model_dir \
+            -load_model_file_list ${model_list} \
+            -save_model_dir $model_dir \
+            -use_gpu || exit 1
+    else
+        PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
+            -read_test_dir data/dev_hires_filtered \
+            -read_vocab_file exp/vocab.torch \
+            -load_model_dir $model_dir \
+            -load_model_file_list ${model_list} \
+            -save_model_dir $model_dir
+    fi
+    echo '[INFO] combining finish.'
+fi
+exit 0
+
+if [ $stage -le 5 ]; then
     echo '[PROCEDURE] decoding test set... log is in decode.log'
     $cuda_cmd decode.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
         -read_decode_dir data/train${data_perfix}_filtered \
