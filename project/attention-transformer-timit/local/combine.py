@@ -50,20 +50,31 @@ def main():
 
     vocab_size = len(torch.load(opt.read_vocab_file))
     crit = train.get_criterion(vocab_size)
+    if opt.use_gpu:
+        crit = crit.cuda()
     print('[INFO] using cross entropy loss.')
 
 #---------------------------------------------------------------------------------------------------------------------
+    '''
     for model in models:
+        if opt.use_gpu:
+            model = model.cuda()
         start = time.time()
         test_loss, test_accu = train.train_epoch(model, test_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
         print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
-
+    '''
     model = sum_average_model(models)
+    if opt.use_gpu:
+        model = model.cuda()
     start = time.time()
     test_loss, test_accu = train.train_epoch(model, test_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
-    print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
+    print('[INFO]-----(evaluating combining set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
+
+    model_name = opt.save_model_dir + '/combined.accu{:3.2f}.torch'.format(100*test_accu)
+    checkpoint['model'] = model
+    torch.save(checkpoint, model_name)
 
 if __name__ == '__main__':
     main()

@@ -180,7 +180,8 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
         print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
 
-        if epoch % opt.save_interval == 0:
+        #early model will be saved only at each interval, and all of model in the last interval will be keep for model combining
+        if epoch % opt.save_interval == 0 || opt.epoch - epoch < opt.save_interval:
             checkpoint = {
                 'model': model,
                 'model_options': model_options,
