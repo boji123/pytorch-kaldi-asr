@@ -9,13 +9,13 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-4.local -l gpu=1,io=0"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0"
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
-cuda_device=3
+cuda_device=2
+stage=2
 #------------------------------------------------------------
-stage=4
 #data_perfix=
 data_perfix=_hires
 #speed_perturb=
@@ -31,13 +31,12 @@ if [ $stage -le 0 ]; then
     done
 fi
 
-
 if [ $stage -le 1 ]; then
     echo '[PROCEDURE] preparing vocabulary for output label'
     mkdir -p exp
     python3 local/prepare_vocab.py -read_instances_file data/train${speed_perturb}${data_perfix}/text -save_vocab_file exp/vocab.torch
 fi
-
+#------------------------------------------------------------
 if [ $stage -le 2 ]; then
     echo '[PROCEDURE] reading dimension from data file and initialize the model'
     time=$(date "+%Y%m%d-%H%M%S")
@@ -55,22 +54,21 @@ if [ $stage -le 2 ]; then
         -encoder_sub_sequence '(-100,0)' \
         -decoder_sub_sequence '(-20,0)' \
         \
-        -n_layers 2 \
+        -en_layers 3 \
+        -de_layers 2 \
         -n_head 3 \
         -d_model 256 \
         -d_inner_hid 256 \
         -d_k 64 \
         -d_v 64 \
-        -dropout 0.25 \
-
+        -dropout 0.25
 fi
-
 
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     if $use_gpu; then
         #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
-        $cuda_cmd train.lr20000d25ep5004.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd train_l3.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
@@ -101,15 +99,14 @@ if [ $stage -le 3 ]; then
     echo '[INFO] trainning finish.'
 fi
 
-
 if [ $stage -le 4 ]; then
     echo '[PROCEDURE] combining model... log is in combine.log'
-    num_combine=10
+    num_combine=10 # num_combine = num_interval here
     #model_dir=
     model_list=`ls ${model_dir} --sort=time | grep ^epoch.*.torch$ | head -${num_combine}`
 
     if $use_gpu; then
-        $cuda_cmd combine.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
+        $cuda_cmd combine_l3.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
             -read_test_dir data/dev_hires_filtered \
             -read_vocab_file exp/vocab.torch \
             -load_model_dir $model_dir \
@@ -127,7 +124,7 @@ if [ $stage -le 4 ]; then
     echo '[INFO] combining finish.'
 fi
 exit 0
-
+#------------------------------------------------------------
 if [ $stage -le 5 ]; then
     echo '[PROCEDURE] decoding test set... log is in decode.log'
     $cuda_cmd decode.log CUDA_VISIBLE_DEVICES=3 PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
