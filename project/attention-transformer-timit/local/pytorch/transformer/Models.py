@@ -65,8 +65,8 @@ def fold_seq_and_mask(seq, pad_mask, fold):
 class Encoder(nn.Module):
     ''' A encoder model with self attention mechanism. '''
     def __init__(
-            self, n_src_dim, encoder_max_len, n_layers=6, n_head=8, sub_sequence=(-1,1),
-            d_k=64, d_v=64, d_model=512, d_inner_hid=1024, dropout=0.1):
+            self, n_src_dim, encoder_max_len, n_layers=2, n_head=3, sub_sequence=(-1,1),
+            d_k=64, d_v=64, d_model=256, d_inner_hid=256, dropout=0.1):
 
         super(Encoder, self).__init__()
         self.sub = sub_sequence
@@ -124,8 +124,8 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     ''' A decoder model with self attention mechanism. '''
     def __init__(
-            self, n_tgt_vocab, decoder_max_len, n_layers=6, n_head=8, sub_sequence=(-1,1),
-            d_k=64, d_v=64, d_model=512, d_inner_hid=1024, dropout=0.1):
+            self, n_tgt_vocab, decoder_max_len, n_layers=2, n_head=3, sub_sequence=(-1,1),
+            d_k=64, d_v=64, d_model=256, d_inner_hid=256, dropout=0.1):
 
         super(Decoder, self).__init__()
         self.sub = sub_sequence
@@ -183,17 +183,17 @@ class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
             self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len, src_fold=1, encoder_sub_sequence=(-100,0), decoder_sub_sequence=(-20,0),
-            n_layers=6, n_head=8, d_model=512, d_inner_hid=1024, d_k=64, d_v=64, dropout=0.1):
+            en_layers=2, de_layers=2, n_head=3, d_model=256, d_inner_hid=256, d_k=64, d_v=64, dropout=0.1):
 
         super(Transformer, self).__init__()
 
         self.src_fold = src_fold
         self.encoder = Encoder(
             n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, sub_sequence=(-100,0),
-            n_layers=n_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
+            n_layers=en_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
         self.decoder = Decoder(
             n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
-            n_layers=n_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
+            n_layers=de_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
 
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):

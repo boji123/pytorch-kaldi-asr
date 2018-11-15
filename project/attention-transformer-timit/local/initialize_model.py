@@ -30,10 +30,11 @@ def main():
     parser.add_argument('-encoder_sub_sequence', default='(-100,0)')
     parser.add_argument('-decoder_sub_sequence', default='(-20,0)')
 
-    parser.add_argument('-n_layers', type=int, default=6)
-    parser.add_argument('-n_head', type=int, default=8)
-    parser.add_argument('-d_model', type=int, default=512)
-    parser.add_argument('-d_inner_hid', type=int, default=1024)
+    parser.add_argument('-en_layers', type=int, default=2)
+    parser.add_argument('-de_layers', type=int, default=2)
+    parser.add_argument('-n_head', type=int, default=3)
+    parser.add_argument('-d_model', type=int, default=256)
+    parser.add_argument('-d_inner_hid', type=int, default=256)
     parser.add_argument('-d_k', type=int, default=64)
     parser.add_argument('-d_v', type=int, default=64)
     parser.add_argument('-dropout', type=float, default=0.1)
@@ -63,7 +64,8 @@ def main():
         src_fold=opt.src_fold,
         encoder_sub_sequence=(-100,0),
         decoder_sub_sequence=(-20,0),
-        n_layers=opt.n_layers,
+        en_layers=opt.en_layers,
+        de_layers=opt.de_layers,
         n_head=opt.n_head,
         d_model=opt.d_model,
         d_inner_hid=opt.d_inner_hid,
