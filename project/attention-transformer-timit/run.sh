@@ -21,6 +21,7 @@ model_suffix=_enL3d25b
 data_perfix=_hires
 #speed_perturb=
 speed_perturb=_sp
+lang=data/language
 
 if [ $stage -le 0 ]; then
     echo '[PROCEDURE] preparing instances.'
@@ -35,15 +36,19 @@ fi
 
 if [ $stage -le 1 ]; then
     echo '[PROCEDURE] preparing vocabulary for output label'
-    mkdir -p exp
-    python3 local/prepare_vocab.py -read_instances_file data/train${speed_perturb}${data_perfix}/text -save_vocab_file exp/vocab.txt
+    mkdir -p ${lang}
+    python3 local/prepare_vocab.py -read_instances_file data/train${speed_perturb}${data_perfix}/text -save_vocab_file ${lang}/vocab.txt
+    #add the disambig symbol, for generating fst file
+    index=`wc -l test.txt | cut -d' ' -f1`
+    echo "#0 ${index}" >> vocab.txt
 fi
 
 if [ $stage -le 2 ]; then
-    mkdir -p data/language
-    echo '[PROCEDURE] preparing language model.(arpa format)'
+    echo '[PROCEDURE] preparing language model(arpa) and fst file.'
     cat data/train${data_perfix}/text | cut -d' ' -f2- |\
-    ngram-count -text - -order 3 -lm data/language/lm.3k.gz
+        ngram-count -text - -order 3 -lm ${lang}/lm.3k.gz
+    #in this project, <blank> as eps symbol, #0 as disambig symbol
+    gunzip -c ${lang}/lm.3k.gz | arpa2fst --disambig-symbol=#0 --read-symbol-table=${lang}/vocab.txt - ${lang}/lm.3k.fst
 fi
 #exit 0
 #------------------------------------------------------------
@@ -55,7 +60,7 @@ if [ $stage -le 3 ]; then
     #read_feats_scp_file and read_vocab_file for initializing the input and output dimension
     PYTHONIOENCODING=utf-8 python3 local/initialize_model.py \
         -read_feats_scp_file data/train${speed_perturb}${data_perfix}_filtered/feats.scp \
-        -read_vocab_file exp/vocab.txt \
+        -read_vocab_file ${lang}/vocab.txt \
         -save_model_file ${model_dir}/model.init \
         \
         -encoder_max_len 500 \
@@ -82,7 +87,7 @@ if [ $stage -le 4 ]; then
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
-            -read_vocab_file exp/vocab.txt \
+            -read_vocab_file ${lang}/vocab.txt \
             -load_model_file ${model_dir}/model.init \
             \
             -optim_start_lr 0.001 \
@@ -97,7 +102,7 @@ if [ $stage -le 4 ]; then
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
-            -read_vocab_file exp/vocab.txt \
+            -read_vocab_file ${lang}/vocab.txt \
             -load_model_file ${model_dir}/model.init \
             \
             -optim_start_lr 0.001 \
@@ -118,7 +123,7 @@ if [ $stage -le 5 ]; then
     if $use_gpu; then
         $cuda_cmd combine${model_suffix}.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
             -read_test_dir data/dev_hires_filtered \
-            -read_vocab_file exp/vocab.txt \
+            -read_vocab_file ${lang}/vocab.txt \
             -load_model_dir $model_dir \
             -load_model_file_list ${model_list} \
             -save_model_dir $model_dir \
@@ -126,7 +131,7 @@ if [ $stage -le 5 ]; then
     else
         PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
             -read_test_dir data/dev_hires_filtered \
-            -read_vocab_file exp/vocab.txt \
+            -read_vocab_file ${lang}/vocab.txt \
             -load_model_dir $model_dir \
             -load_model_file_list ${model_list} \
             -save_model_dir $model_dir
@@ -140,7 +145,7 @@ if [ $stage -le 6 ]; then
     if $use_gpu; then
         $cuda_cmd decode.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
             -read_decode_dir data/train${data_perfix}_filtered \
-            -read_vocab_file exp/vocab.txt \
+            -read_vocab_file ${lang}/vocab.txt \
             -load_model_file exp/best.dev78.torch \
             -max_token_seq_len 80 \
             -batch_size 5 \
@@ -150,7 +155,7 @@ if [ $stage -le 6 ]; then
     else
         PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
             -read_decode_dir data/dev${data_perfix}_filtered \
-            -read_vocab_file exp/vocab.txt \
+            -read_vocab_file ${lang}/vocab.txt \
             -load_model_file exp/best.dev78.torch \
             -max_token_seq_len 80 \
             -batch_size 5 \
