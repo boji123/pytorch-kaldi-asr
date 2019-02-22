@@ -60,8 +60,8 @@ class Beam(object):
         # word and beam each score came from
         prev_k = best_scores_id / num_words
         self.prev_ks.append(prev_k)
-        self.next_ys.append(best_scores_id - prev_k * num_words)
-
+        self.next_ys.append(best_scores_id % num_words)
+        
         # End condition is when top-of-beam is EOS.
         if self.next_ys[-1][0] == constants.EOS:
             self.done = True
