@@ -61,6 +61,7 @@ def translate_batch(model, batch, opt, model_options):
         # size: batch x beam x seq
         dec_partial_seq = torch.stack([b.get_current_state() for b in beams if not b.done])
         dec_partial_seq = dec_partial_seq.view(-1, len_dec_seq).cpu().numpy()
+        #generate a mask for decoder (useless call, just for convenience)
         dec_partial_seq, dec_partial_seq_mask = instances_handler.pad_to_longest(dec_partial_seq)
 
         # size: (batch * beam) x seq
