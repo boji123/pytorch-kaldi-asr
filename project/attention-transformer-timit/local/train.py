@@ -249,7 +249,7 @@ def main():
     print('[INFO] batch loader is initialized')
 
 
-    vocab_size = len(torch.load(opt.read_vocab_file))
+    vocab_size = len(instances_handler.read_vocab(opt.read_vocab_file))
     crit = get_criterion(vocab_size)
     print('[INFO] using cross entropy loss.')
 

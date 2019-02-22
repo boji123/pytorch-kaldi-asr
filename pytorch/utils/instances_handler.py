@@ -30,12 +30,15 @@ def read_instances(instance_file, language='english'):
 #build the vocab (will ignore words that don't always appearance)
 def build_vocab(instances, min_word_count = 0):
     vocab = set(word for key in instances for word in instances[key])
+    vocab = list(vocab)
+    vocab.sort() #to ensure same result, we must sort it
 
     word2idx = {
-        constants.BOS_WORD: constants.BOS,
-        constants.EOS_WORD: constants.EOS,
         constants.PAD_WORD: constants.PAD,
-        constants.UNK_WORD: constants.UNK
+        constants.UNK_WORD: constants.UNK,
+        constants.BOS_WORD: constants.BOS,
+        constants.EOS_WORD: constants.EOS
+
     }
 
     word_count = {word:0 for word in vocab}
@@ -58,10 +61,25 @@ def build_vocab(instances, min_word_count = 0):
     return word2idx
 
 
-#save the vocab in pytorch format
+#save the vocab as symbol table
 def save_vocab(vocab, vocab_file):
-    torch.save(vocab, vocab_file)
+    with open(vocab_file, 'w', encoding='utf-8') as file:
+        for word,index in vocab.items():
+            line = str(word) + ' ' + str(index) + '\n'
+            file.write(line)
     print('[INFO] vocab_file is saved to {}.'.format(vocab_file))
+
+#read the vocab as symbol table
+def read_vocab(vocab_file):
+    word2idx = {}
+    with open(vocab_file, encoding='utf-8') as file:
+        for line in file:
+            data = line.split()
+            word = data[0]
+            index = int(data[1])
+            word2idx[word] = index
+    print('[INFO] vocab_file {} loaded.'.format(vocab_file))
+    return word2idx
 
 
 #add BOS and EOS to the instances index
@@ -74,7 +92,7 @@ def add_control_words(instances_index):
 
 #replace the words by index readed from vocab file, or reconstruct the word index by word
 def apply_vocab(instances, vocab_file, mode):
-    word2idx = torch.load(vocab_file)
+    word2idx = read_vocab(vocab_file)
 
     applied = {}
     if mode == 'word2idx':

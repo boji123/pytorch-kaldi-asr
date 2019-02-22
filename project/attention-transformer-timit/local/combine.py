@@ -4,6 +4,8 @@ import math
 import torch
 import train
 
+from utils import instances_handler
+
 def scale_dict(data_dict, factor):
     data_dict = {key: data_dict[key].mul(factor) for key in data_dict}
     return data_dict
@@ -49,7 +51,7 @@ def main():
     test_data = train.initialize_batch_loader(opt.read_test_dir + '/feats.scp', opt.read_test_dir + '/text', opt.read_vocab_file, batch_size)
     print('[INFO] batch loader is initialized')
 
-    vocab_size = len(torch.load(opt.read_vocab_file))
+    vocab_size = len(instances_handler.read_vocab(opt.read_vocab_file))
     crit = train.get_criterion(vocab_size)
     if opt.use_gpu:
         crit = crit.cuda()

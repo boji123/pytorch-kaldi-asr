@@ -6,6 +6,7 @@ import argparse
 import kaldi_io
 import torch
 from transformer.Models import Transformer
+from utils import instances_handler
 
 def str2tuple(str):
     if str[0] == '(' and str[-1] == ')':
@@ -50,7 +51,7 @@ def main():
         break
     print('[INFO] get feature of dimension {} from {}.'.format(opt.src_dim, opt.read_feats_scp_file))
 
-    word2idx = torch.load(opt.read_vocab_file)
+    word2idx = instances_handler.read_vocab(opt.read_vocab_file)
     opt.tgt_vocab_dim = len(word2idx)
     print('[INFO] get label of dimension {} from {}.'.format(opt.tgt_vocab_dim, opt.read_vocab_file))
 
