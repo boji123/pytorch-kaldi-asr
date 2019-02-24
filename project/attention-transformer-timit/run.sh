@@ -12,9 +12,9 @@ export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
 export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1,io=0,ram_free=3G"
 set -e # exit on error
 #------------------------------------------------------------
-use_gpu=true
+use_gpu=false
 cuda_device=3
-stage=0
+stage=7
 model_suffix=_enL3d25b
 #------------------------------------------------------------
 #data_perfix=
@@ -52,10 +52,10 @@ if [ $stage -le 2 ]; then
 fi
 #exit 0
 #------------------------------------------------------------
+time=$(date "+%Y%m%d-%H%M%S")
+model_dir=exp/model${model_suffix}-${time}
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] reading dimension from data file and initialize the model'
-    time=$(date "+%Y%m%d-%H%M%S")
-    model_dir=exp/model${model_suffix}-${time}
     mkdir -p $model_dir
     #read_feats_scp_file and read_vocab_file for initializing the input and output dimension
     PYTHONIOENCODING=utf-8 python3 local/initialize_model.py \
@@ -140,27 +140,56 @@ if [ $stage -le 5 ]; then
 fi
 
 #------------------------------------------------------------
+#decode & rescore
+#------------------------------------------------------------
+decode_dir=exp/decode
+data_dir=data/train${data_perfix}_filtered
+
 if [ $stage -le 6 ]; then
     echo '[PROCEDURE] decoding test set... log is in decode.log'
+    mkdir -p ${decode_dir}
+
     if $use_gpu; then
         $cuda_cmd decode.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
-            -read_decode_dir data/train${data_perfix}_filtered \
+            -read_data_dir ${data_dir} \
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_file exp/best.dev78.torch \
             -max_token_seq_len 80 \
-            -batch_size 5 \
-            -beam_size 10 \
-            -save_result_file exp/result.txt\
+            -batch_size 2 \
+            -beam_size 20 \
+            -nbest 10\
+            -save_result_file ${decode_dir}/decode.txt\
             -use_gpu || exit 1
     else
         PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
-            -read_decode_dir data/dev${data_perfix}_filtered \
+            -read_data_dir ${data_dir} \
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_file exp/best.dev78.torch \
             -max_token_seq_len 80 \
-            -batch_size 5 \
-            -beam_size 10 \
-            -save_result_file exp/result.txt
+            -batch_size 2 \
+            -beam_size 20 \
+            -nbest 10\
+            -save_result_file ${decode_dir}/decode.txt
     fi
     echo '[INFO] decoding finish.'
+fi
+
+if [ $stage -le 7 ]; then
+    echo '[PROCEDURE] caculating language model score...'
+    #ngram -lm ${lang}/lm.3k.gz -order 3 -ppl ${decode_dir}/decode.txt -debug 1 | grep logprob | cut -d' ' -f4 > ${decode_dir}/lm.3k.score.txt
+    #sed -i '$d' ${decode_dir}/lm.3k.score.txt
+    #echo '[INFO] language model score computed.'
+    mkdir -p ${decode_dir}/scoring
+    PYTHONIOENCODING=utf-8 python3 -u local/rescore.py \
+        -decode_file ${decode_dir}/decode.txt \
+        -lm_score ${decode_dir}/lm.3k.score.txt \
+        -inv_weight_list 10,15,20,25,30,35,40 \
+        -save_dir ${decode_dir}/scoring
+    echo '[PROCEDURE] computing WER...'
+    for rescore_file in `ls ${decode_dir}/scoring | grep rescore`; do
+        compute-wer --mode=present ark:${data_dir}/text ark:${decode_dir}/scoring/${rescore_file} \
+            > ${decode_dir}/scoring/${rescore_file}_wer
+    done
+
+    echo '[INFO] best wer presented in file:'
 fi
