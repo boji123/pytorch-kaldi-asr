@@ -137,15 +137,13 @@ def translate_batch(model, batch, opt, model_options):
         #- update the remaining size
         n_remaining_sents = len(active_inst_idxs)
 
+
     #- Return useful information
     all_hyp, all_scores = [], []
-
     for beam_idx in range(batch_size):
         scores, tail_idxs = beams[beam_idx].sort_scores()
-        all_scores += [scores[0].item()]
-
-        hyps = beams[beam_idx].get_hypothesis(tail_idxs[0])
-        hyps = [k.item() for k in hyps]
+        all_scores += [[k.item() for k in scores[:opt.nbest]]]
+        hyps = [[k.item() for k in beams[beam_idx].get_hypothesis(i)] for i in tail_idxs[:opt.nbest]]
         all_hyp += [hyps]
 
     return all_hyp, all_scores
@@ -153,7 +151,7 @@ def translate_batch(model, batch, opt, model_options):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-read_decode_dir', required=True)
+    parser.add_argument('-read_data_dir', required=True)
     parser.add_argument('-read_vocab_file', required=True)
     parser.add_argument('-load_model_file', required=True)
     parser.add_argument('-save_result_file', required=True)
@@ -161,9 +159,13 @@ def main():
     parser.add_argument('-max_token_seq_len', type=int, required=True)
     parser.add_argument('-batch_size', type=int, default=64)
     parser.add_argument('-beam_size', type=int, default=20)
+    parser.add_argument('-nbest', type=int, default=10)    
     parser.add_argument('-use_gpu', action='store_true')
     opt = parser.parse_args()
 
+    if opt.nbest > opt.beam_size:
+        print("[ERROR] nbest should not larger than beam_size")
+        exit(1)
 
     checkpoint = torch.load(opt.load_model_file, map_location=lambda storage, loc: storage)
     model = checkpoint['model']
@@ -174,37 +176,40 @@ def main():
     print('[INFO] loading model with parameter: {}'.format(model_options))
 
 
-    decode_data = initialize_batch_loader(opt.read_decode_dir + '/feats.scp', opt.read_decode_dir + '/text', opt.read_vocab_file, opt.batch_size)
+    decode_data = initialize_batch_loader(opt.read_data_dir + '/feats.scp', opt.read_data_dir + '/text', opt.read_vocab_file, opt.batch_size)
     print('[INFO] batch loader is initialized')
 
 
     word2idx = instances_handler.read_vocab(opt.read_vocab_file)
     idx2word = {index:word for word, index in word2idx.items()}
-    with open(opt.save_result_file, 'wb') as f:
+    with open(opt.save_result_file, 'w', encoding='utf-8') as f:
         for batch in tqdm(decode_data, mininterval=2, desc='(decode)'):
             all_hyp, all_scores = translate_batch(model, batch, opt, model_options)
+            key = batch[0]
             tgt_seq = batch[3]
-            for (a, b) in zip(tgt_seq, all_hyp):
-                print('next')
-                a = a[np.where(a>3)] #remove function label 0,1,2,3 (currently, 0 as blank, 2 as start, 3 as end)
-                a = list(a)
-                b = b[:-1]
-                print(a)
-                print(b)
+            for (k, s, t, scores) in zip(key, tgt_seq, all_hyp, all_scores):
+                s = list(s[np.where(s>3)]) #remove function label 0,1,2,3 (currently, 0 as blank, 2 as start, 3 as end)
+                '''
+                s = [str(i) for i in s]
+                s = ' '.join(s)
 
-                #a = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in a]
-                #b = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in b]
-                #print(' '.join(a))
-                #print(' '.join(b))
-            exit(0)
-            '''
-            for idx_seqs in all_hyp:
-                for idx_seq in idx_seqs:
-                    word_seq = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in idx_seq[:-1]]
-                    pred_line = ' '.join(word_seq) + '\n'
-                    f.write(pred_line.encode('utf-8'))
-            exit(0)
-            '''
+                t = [[str(j) for j in i] for i in t]
+                t = [' '.join(i) for i in t]
+
+                f.write(k + '\n')
+                f.write('target:' + '\n')
+                f.write(s + '\n')
+                f.write('assume:' + '\n')
+                for line in t:
+                    f.write(line + '\n')
+                '''
+                s = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in s]
+                t = [[idx2word[index] if index in idx2word else constants.UNK_WORD for index in i] for i in t]
+
+                s = ' '.join(s)
+                t = [' '.join(i) for i in t]
+                for (line, score) in zip(t, scores):
+                    f.write(k + '\t' + str(score) + '\t' + line + '\n')
 
 
 if __name__ == '__main__':
