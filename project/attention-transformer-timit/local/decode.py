@@ -159,6 +159,7 @@ def main():
     parser.add_argument('-max_token_seq_len', type=int, required=True)
     parser.add_argument('-batch_size', type=int, default=64)
     parser.add_argument('-beam_size', type=int, default=20)
+    # if nbest > 2, it will produce result with repeat key (as optional result for rescoring)
     parser.add_argument('-nbest', type=int, default=10)    
     parser.add_argument('-use_gpu', action='store_true')
     opt = parser.parse_args()
@@ -189,20 +190,7 @@ def main():
             tgt_seq = batch[3]
             for (k, s, t, scores) in zip(key, tgt_seq, all_hyp, all_scores):
                 s = list(s[np.where(s>3)]) #remove function label 0,1,2,3 (currently, 0 as blank, 2 as start, 3 as end)
-                '''
-                s = [str(i) for i in s]
-                s = ' '.join(s)
 
-                t = [[str(j) for j in i] for i in t]
-                t = [' '.join(i) for i in t]
-
-                f.write(k + '\n')
-                f.write('target:' + '\n')
-                f.write(s + '\n')
-                f.write('assume:' + '\n')
-                for line in t:
-                    f.write(line + '\n')
-                '''
                 s = [idx2word[index] if index in idx2word else constants.UNK_WORD for index in s]
                 t = [[idx2word[index] if index in idx2word else constants.UNK_WORD for index in i] for i in t]
 
