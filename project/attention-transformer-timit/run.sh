@@ -142,56 +142,60 @@ fi
 #------------------------------------------------------------
 #decode & rescore
 #------------------------------------------------------------
-decode_dir=exp/decode_dev
-data_dir=data/dev${data_perfix}_filtered
-model_file=exp/model_enL3d25b-20190222-102224/best.epoch211.accu78.02.torch
+model_dir=exp/model_enL3d25b-20190222-102224
+model_file=${model_dir}/best.epoch211.accu78.02.torch
 if [ $stage -le 6 ]; then
-    echo '[PROCEDURE] decoding test set... log is in decode.log'
-    mkdir -p ${decode_dir}
+    for dir in train dev test; do
+        (
+            #----------decoding---------
+            echo "[PROCEDURE] decoding ${dir} set... model file is ${model_file}"
+            decode_dir=${model_dir}/decode_${dir}
+            mkdir -p ${decode_dir}
+            data_dir=data/${dir}${data_perfix}_filtered
+            if $use_gpu; then
+                $cuda_cmd ${decode_dir}/decode.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
+                    -read_data_dir ${data_dir} \
+                    -read_vocab_file ${lang}/vocab.txt \
+                    -load_model_file ${model_file} \
+                    -max_token_seq_len 80 \
+                    -batch_size 32 \
+                    -beam_size 20 \
+                    -nbest 10\
+                    -save_result_file ${decode_dir}/decode.txt\
+                    -use_gpu || exit 1
+            else
+                PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
+                    -read_data_dir ${data_dir} \
+                    -read_vocab_file ${lang}/vocab.txt \
+                    -load_model_file ${model_file} \
+                    -max_token_seq_len 80 \
+                    -batch_size 4 \
+                    -beam_size 10 \
+                    -nbest 1\
+                    -save_result_file ${decode_dir}/decode.txt || exit 1
+            fi
 
-    if $use_gpu; then
-        $cuda_cmd decode.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
-            -read_data_dir ${data_dir} \
-            -read_vocab_file ${lang}/vocab.txt \
-            -load_model_file ${model_file} \
-            -max_token_seq_len 80 \
-            -batch_size 32 \
-            -beam_size 20 \
-            -nbest 10\
-            -save_result_file ${decode_dir}/decode.txt\
-            -use_gpu || exit 1
-    else
-        PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
-            -read_data_dir ${data_dir} \
-            -read_vocab_file ${lang}/vocab.txt \
-            -load_model_file ${model_file} \
-            -max_token_seq_len 80 \
-            -batch_size 4 \
-            -beam_size 10 \
-            -nbest 1\
-            -save_result_file ${decode_dir}/decode.txt || exit 1
-    fi
-    echo '[INFO] decoding finish.'
-fi
+            #----------rescoring----------
+            echo '[PROCEDURE] rescoring...'
+            echo '[INFO] caculating language model score...'
+            ngram -lm ${lang}/lm.3k.gz -order 3 -ppl ${decode_dir}/decode.txt -debug 1 | grep logprob | cut -d' ' -f4 > ${decode_dir}/lm.3k.score.txt
+            sed -i '$d' ${decode_dir}/lm.3k.score.txt
+            echo '[INFO] language model score computed.'
+            
+            mkdir -p ${decode_dir}/scoring
+            PYTHONIOENCODING=utf-8 python3 -u local/rescore.py \
+                -decode_file ${decode_dir}/decode.txt \
+                -lm_score ${decode_dir}/lm.3k.score.txt \
+                -inv_weight_list 10,11,12,13,13.5,14,14.5,15,15.5,16,16.5,17,18,19,20,1000 \
+                -save_dir ${decode_dir}/scoring > ${decode_dir}/scoring/scoring.log
+            echo '[INFO] computing WER...'
+            for rescore_file in `ls ${decode_dir}/scoring | grep rescore | grep -v wer`; do
+                compute-wer --mode=present ark:${data_dir}/text ark:${decode_dir}/scoring/${rescore_file} \
+                    > ${decode_dir}/scoring/${rescore_file}_wer
+            done
 
-if [ $stage -le 7 ]; then
-    echo '[PROCEDURE] caculating language model score...'
-    ngram -lm ${lang}/lm.3k.gz -order 3 -ppl ${decode_dir}/decode.txt -debug 1 | grep logprob | cut -d' ' -f4 > ${decode_dir}/lm.3k.score.txt
-    sed -i '$d' ${decode_dir}/lm.3k.score.txt
-    echo '[INFO] language model score computed.'
-
-    mkdir -p ${decode_dir}/scoring
-    PYTHONIOENCODING=utf-8 python3 -u local/rescore.py \
-        -decode_file ${decode_dir}/decode.txt \
-        -lm_score ${decode_dir}/lm.3k.score.txt \
-        -inv_weight_list 10,11,12,13,13.5,14,14.5,15,15.5,16,16.5,17,18,19,20,1000 \
-        -save_dir ${decode_dir}/scoring
-    echo '[PROCEDURE] computing WER...'
-    for rescore_file in `ls ${decode_dir}/scoring | grep rescore | grep -v wer`; do
-        compute-wer --mode=present ark:${data_dir}/text ark:${decode_dir}/scoring/${rescore_file} \
-            > ${decode_dir}/scoring/${rescore_file}_wer
+            echo '[INFO] best wer presented in file:'
+            grep WER ${decode_dir}/scoring/*wer | best_wer.sh
+        ) &
     done
-
-    echo '[INFO] best wer presented in file:'
-    grep WER ${decode_dir}/scoring/*wer | best_wer.sh
 fi
