@@ -15,6 +15,7 @@ import torch.optim as optim
 from transformer.Models import Transformer
 from transformer.Optim import ScheduledOptim
 
+from utils.get_gpu import get_available_gpu_ids
 
 def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file, batch_size):
     utterances = {}
@@ -228,6 +229,14 @@ def main():
     parser.add_argument('-save_interval', type=int, default=10)
     opt = parser.parse_args()
 
+    if opt.use_gpu:
+        available_gpu_ids = get_available_gpu_ids()
+        if len(available_gpu_ids) == 0:
+            print('[ERROR] no cuda device available!')
+            exit(1)
+        else:
+            torch.cuda.set_device(available_gpu_ids[0])
+            print('[INFO] use gpu device {}'.format(available_gpu_ids[0]))
 
     print('[PROCEDURE] prepare trainning.')
 

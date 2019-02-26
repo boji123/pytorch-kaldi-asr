@@ -6,6 +6,8 @@ import train
 
 from utils import instances_handler
 
+from utils.get_gpu import get_available_gpu_ids
+
 def scale_dict(data_dict, factor):
     data_dict = {key: data_dict[key].mul(factor) for key in data_dict}
     return data_dict
@@ -36,7 +38,16 @@ def main():
     parser.add_argument('-save_model_dir', required=True)
     parser.add_argument('-use_gpu', action='store_true')
     opt = parser.parse_args()
-    
+
+    if opt.use_gpu:
+        available_gpu_ids = get_available_gpu_ids()
+        if len(available_gpu_ids) == 0:
+            print('[ERROR] no cuda device available!')
+            exit(1)
+        else:
+            torch.cuda.set_device(available_gpu_ids[0])
+            print('[INFO] use gpu device {}'.format(available_gpu_ids[0]))
+
     print('[PROCEDURE] combining model with model averaging...')
     models = []
     for file in opt.load_model_file_list:

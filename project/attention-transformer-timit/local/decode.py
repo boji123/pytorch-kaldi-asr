@@ -17,6 +17,8 @@ from transformer.Lattice import Lattice
 
 from train import initialize_batch_loader
 
+from utils.get_gpu import get_available_gpu_ids
+
 def translate_batch(model, batch, opt, model_options):
     model.eval()
     # prepare data
@@ -118,6 +120,15 @@ def main():
     parser.add_argument('-nbest', type=int, default=10)    
     parser.add_argument('-use_gpu', action='store_true')
     opt = parser.parse_args()
+
+    if opt.use_gpu:
+        available_gpu_ids = get_available_gpu_ids()
+        if len(available_gpu_ids) == 0:
+            print('[ERROR] no cuda device available!')
+            exit(1)
+        else:
+            torch.cuda.set_device(available_gpu_ids[0])
+            print('[INFO] use gpu device {}'.format(available_gpu_ids[0]))
 
     if opt.nbest > opt.beam_size:
         print("[ERROR] nbest should not larger than beam_size")
