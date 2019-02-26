@@ -11,6 +11,7 @@ class Lattice(object):
         self.beam_size = beam_size
         self.edges = [[-1, constants.BOS, 0]] #list of [prev_edge, word_state_id, sum_weight]
         self.curr_edge_index = [0] #edge that reach </s> should be considered
+        self.num_curr_active = 1      
         self.done = False
 
     #returns the index of active edge
@@ -73,7 +74,8 @@ class Lattice(object):
         self.curr_edge_index = curr_edge_index
         self.curr_length += 1
 
-        if len(self.get_active_edge(self.curr_edge_index)) == 0 or self.curr_length > self.max_length:
+        self.num_curr_active = len(self.get_active_edge(self.curr_edge_index))
+        if self.num_curr_active == 0 or self.curr_length > self.max_length:
             self.done = True #decode finish
 
         return self.done
