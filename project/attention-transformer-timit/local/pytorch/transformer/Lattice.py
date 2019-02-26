@@ -55,6 +55,7 @@ class Lattice(object):
 
         #add arc to list
         curr_edge_index = []
+        #use following code to ensure the weight order
         for index in best_word_index:
             if index < num_active:
                 prev_edge = prev_edge_index[index]
@@ -76,17 +77,30 @@ class Lattice(object):
         else:
             return False
 
-    def get_result(self):
-        results = []
-        for edge_index in self.curr_edge_index:
-            result = []
-            while(edge_index > -1):
-                result += [self.edges[edge_index][1]]
-                edge_index = self.edges[edge_index][0]
-            results += [result]
-        weights = self.get_weights_by_indexs(self.curr_edge_index)
-        return results, weights
+    #given stop index, it will start from index reading forward to output a sequence
+    def get_sequence(self, index):
+        result = []
+        while(index > -1):
+            result += [self.edges[index][1]]
+            index = self.edges[index][0]
+        #return a inverse result
+        return result[::-1]
 
+    def get_results(self, mode='all'):
+        if mode == 'all': #return all edge in beam
+            result_indexs = self.curr_edge_index
+        elif mode == 'active': #return edge that not reach to end yer
+            result_indexs = self.get_active_edge(self.curr_edge_index)
+        elif mode == 'end': #return edge that reach to end
+            result_indexs = self.get_end_edge(self.curr_edge_index)
+
+        results = []
+        for index in result_indexs:
+            results += [self.get_sequence(index)]
+
+        weights = self.get_weights_by_indexs(result_indexs)
+
+        return results, weights
 
 def main():
     max_length = 10
@@ -102,10 +116,10 @@ def main():
                   [-99, -99, -99, -1.5, -4, -3, -2]]
     lattice.advance(np.array(weight_arr))
 
-    weight_arr = [[-99, -99, -99, -1.5, -2, -3, -4]]
-    lattice.advance(np.array(weight_arr))
+    #weight_arr = [[-99, -99, -99, -1.5, -2, -3, -4]]
+    #lattice.advance(np.array(weight_arr))
 
-    results, weights = lattice.get_result()
+    results, weights = lattice.get_results()
     print(results)
     print(weights)
     print(lattice.edges)
