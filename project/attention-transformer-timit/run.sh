@@ -13,8 +13,8 @@ export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0,ram_free=
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
-cuda_device=3
-stage=7
+cuda_device=0,1,2,3
+stage=6
 model_suffix=_enL3d25b
 #------------------------------------------------------------
 #data_perfix=
@@ -134,7 +134,7 @@ if [ $stage -le 5 ]; then
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_dir $model_dir \
             -load_model_file_list ${model_list} \
-            -save_model_dir $model_dir
+            -save_model_dir $model_dir || exit 1
     fi
     echo '[INFO] combining finish.'
 fi
@@ -166,10 +166,10 @@ if [ $stage -le 6 ]; then
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_file ${model_file} \
             -max_token_seq_len 80 \
-            -batch_size 16 \
-            -beam_size 20 \
-            -nbest 10\
-            -save_result_file ${decode_dir}/decode.txt
+            -batch_size 4 \
+            -beam_size 10 \
+            -nbest 1\
+            -save_result_file ${decode_dir}/decode.txt || exit 1
     fi
     echo '[INFO] decoding finish.'
 fi
@@ -184,7 +184,7 @@ if [ $stage -le 7 ]; then
     PYTHONIOENCODING=utf-8 python3 -u local/rescore.py \
         -decode_file ${decode_dir}/decode.txt \
         -lm_score ${decode_dir}/lm.3k.score.txt \
-        -inv_weight_list 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,20,25,30,35,40,50,60,70,80,90,100,120,140,160,180,200 \
+        -inv_weight_list 10,11,12,13,13.5,14,14.5,15,15.5,16,16.5,17,18,19,20,1000 \
         -save_dir ${decode_dir}/scoring
     echo '[PROCEDURE] computing WER...'
     for rescore_file in `ls ${decode_dir}/scoring | grep rescore | grep -v wer`; do
