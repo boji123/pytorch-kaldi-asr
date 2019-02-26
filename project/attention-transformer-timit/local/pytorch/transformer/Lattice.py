@@ -11,6 +11,7 @@ class Lattice(object):
         self.beam_size = beam_size
         self.edges = [[-1, constants.BOS, 0]] #list of [prev_edge, word_state_id, sum_weight]
         self.curr_edge_index = [0] #edge that reach </s> should be considered
+        self.done = False
 
     #returns the index of active edge
     def get_active_edge(self, edge_index):
@@ -72,10 +73,11 @@ class Lattice(object):
         self.curr_edge_index = curr_edge_index
         self.curr_length += 1
 
-        if self.get_active_edge(self.curr_edge_index) == 0 or self.curr_length > self.max_length:
-            return True #decode finish
-        else:
-            return False
+        if len(self.get_active_edge(self.curr_edge_index)) == 0 or self.curr_length > self.max_length:
+            self.done = True #decode finish
+
+        return self.done
+
 
     #given stop index, it will start from index reading forward to output a sequence
     def get_sequence(self, index):
@@ -116,13 +118,14 @@ def main():
                   [-99, -99, -99, -1.5, -4, -3, -2]]
     lattice.advance(np.array(weight_arr))
 
-    #weight_arr = [[-99, -99, -99, -1.5, -2, -3, -4]]
-    #lattice.advance(np.array(weight_arr))
+    weight_arr = [[-99, -99, -99, -1.5, -2, -3, -4]]
+    lattice.advance(np.array(weight_arr))
 
-    results, weights = lattice.get_results()
-    print(results)
-    print(weights)
-    print(lattice.edges)
+    if lattice.done:
+        results, weights = lattice.get_results()
+        print(results)
+        print(weights)
+        print(lattice.edges)
 
 if __name__ == '__main__':
     main()
