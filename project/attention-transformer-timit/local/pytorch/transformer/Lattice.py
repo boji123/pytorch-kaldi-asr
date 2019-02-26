@@ -78,14 +78,13 @@ class Lattice(object):
 
     def get_result(self):
         results = []
-        weights = []
         for edge_index in self.curr_edge_index:
             result = []
-            weights += [self.edges[edge_index][2]]
             while(edge_index > -1):
                 result += [self.edges[edge_index][1]]
                 edge_index = self.edges[edge_index][0]
             results += [result]
+        weights = self.get_weights_by_indexs(self.curr_edge_index)
         return results, weights
 
 
