@@ -14,7 +14,7 @@ set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
 cuda_device=0,1,2,3
-stage=0
+stage=3
 model_suffix=_de128L2_cmvn
 #------------------------------------------------------------
 #data_perfix=
