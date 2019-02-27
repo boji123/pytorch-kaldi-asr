@@ -246,6 +246,20 @@ def main():
     model_options = checkpoint['model_options']
     print('[INFO] loading model with parameter:\n\t{}'.format(model_options))
 
+    vocab_size = len(instances_handler.read_vocab(opt.read_vocab_file))
+    crit = get_criterion(vocab_size)
+    print('[INFO] using cross entropy loss.')
+    if opt.use_gpu:
+        model = model.cuda()
+        crit = crit.cuda()
+
+    optimizer = ScheduledOptim(
+        optim.Adam(model.parameters(),
+            betas=(0.9, 0.98), eps=1e-09),
+        start_lr = opt.optim_start_lr,
+        soft_coefficient = opt.optim_soft_coefficient)
+    print('[INFO] using adam as optimizer.')
+
 
     print('[INFO] reading training data...')
     train_data = initialize_batch_loader(opt.read_train_dir + '/feats.scp', opt.read_train_dir + '/text', opt.read_vocab_file, opt.batch_size)
@@ -257,22 +271,7 @@ def main():
     test_data = initialize_batch_loader(opt.read_test_dir + '/feats.scp', opt.read_test_dir + '/text', opt.read_vocab_file, opt.batch_size)
     print('[INFO] batch loader is initialized')
 
-
-    vocab_size = len(instances_handler.read_vocab(opt.read_vocab_file))
-    crit = get_criterion(vocab_size)
-    print('[INFO] using cross entropy loss.')
-
-    optimizer = ScheduledOptim(
-        optim.Adam(model.parameters(),
-            betas=(0.9, 0.98), eps=1e-09),
-        start_lr = opt.optim_start_lr,
-        soft_coefficient = opt.optim_soft_coefficient)
-    print('[INFO] using adam as optimizer.')
-
     print('[PROCEDURE] trainning start...')
-    if opt.use_gpu:
-        model = model.cuda()
-        crit = crit.cuda()
     train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options)
 
 
