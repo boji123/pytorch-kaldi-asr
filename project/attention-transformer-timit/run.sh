@@ -9,13 +9,13 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0,ram_free=1G"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1,io=0,ram_free=1G"
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
 cuda_device=0,1,2,3
 stage=6
-model_suffix=_enL3d25b
+model_suffix=_en256_de128
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -53,7 +53,7 @@ fi
 #exit 0
 #------------------------------------------------------------
 time=$(date "+%Y%m%d-%H%M%S")
-model_dir=exp/model${model_suffix}-${time}
+model_dir=exp/model_${time}${model_suffix}
 if [ $stage -le 3 ]; then
     echo '[PROCEDURE] reading dimension from data file and initialize the model'
     mkdir -p $model_dir
@@ -72,8 +72,8 @@ if [ $stage -le 3 ]; then
         -en_layers 3 \
         -de_layers 2 \
         -n_head 3 \
-        -d_model 256 \
-        -d_inner_hid 256 \
+        -en_d_model 256 \
+        -de_d_model 128 \
         -d_k 64 \
         -d_v 64 \
         -dropout 0.25
@@ -83,7 +83,7 @@ if [ $stage -le 4 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     if $use_gpu; then
         #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
-        $cuda_cmd train${model_suffix}.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd ${model_dir}/train${model_suffix}.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
@@ -121,7 +121,7 @@ if [ $stage -le 5 ]; then
     model_list=`ls ${model_dir} --sort=time | grep ^epoch.*.torch$ | head -${num_combine}`
 
     if $use_gpu; then
-        $cuda_cmd combine${model_suffix}.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
+        $cuda_cmd ${model_dir}/combine${model_suffix}.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
             -read_test_dir data/dev_hires_filtered \
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_dir $model_dir \
@@ -142,60 +142,67 @@ fi
 #------------------------------------------------------------
 #decode & rescore
 #------------------------------------------------------------
-model_dir=exp/model_enL3d25b-20190222-102224
-model_file=${model_dir}/best.epoch211.accu78.02.torch
 if [ $stage -le 6 ]; then
+    model_dir=exp/model_20190227-103032_en256_de128
+    model_file=`ls ${model_dir}/best*`
+    if [ ! -f "${model_file}" ]; then
+      echo "${model_file} is not a file."
+      exit 1
+    fi
+
     for dir in train dev test; do
-        (
-            #----------decoding---------
-            echo "[PROCEDURE] decoding ${dir} set... model file is ${model_file}"
-            decode_dir=${model_dir}/decode_${dir}
-            mkdir -p ${decode_dir}
-            data_dir=data/${dir}${data_perfix}_filtered
-            if $use_gpu; then
-                $cuda_cmd ${decode_dir}/decode.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
-                    -read_data_dir ${data_dir} \
-                    -read_vocab_file ${lang}/vocab.txt \
-                    -load_model_file ${model_file} \
-                    -max_token_seq_len 80 \
-                    -batch_size 32 \
-                    -beam_size 20 \
-                    -nbest 10\
-                    -save_result_file ${decode_dir}/decode.txt\
-                    -use_gpu || exit 1
-            else
-                PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
-                    -read_data_dir ${data_dir} \
-                    -read_vocab_file ${lang}/vocab.txt \
-                    -load_model_file ${model_file} \
-                    -max_token_seq_len 80 \
-                    -batch_size 4 \
-                    -beam_size 10 \
-                    -nbest 1\
-                    -save_result_file ${decode_dir}/decode.txt || exit 1
-            fi
+        #----------decoding---------
+        echo "[PROCEDURE] decoding ${dir} set... model file is ${model_file}"
+        decode_dir=${model_dir}/decode_${dir}
+        mkdir -p ${decode_dir}
+        data_dir=data/${dir}${data_perfix}_filtered
+        if $use_gpu; then
+            $cuda_cmd ${decode_dir}/decode.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
+                -read_data_dir ${data_dir} \
+                -read_vocab_file ${lang}/vocab.txt \
+                -load_model_file ${model_file} \
+                -max_token_seq_len 80 \
+                -batch_size 32 \
+                -beam_size 30 \
+                -nbest 10\
+                -save_result_file ${decode_dir}/decode.txt\
+                -use_gpu || exit 1
+        else
+            PYTHONIOENCODING=utf-8 python3 -u local/decode.py \
+                -read_data_dir ${data_dir} \
+                -read_vocab_file ${lang}/vocab.txt \
+                -load_model_file ${model_file} \
+                -max_token_seq_len 80 \
+                -batch_size 4 \
+                -beam_size 10 \
+                -nbest 1\
+                -save_result_file ${decode_dir}/decode.txt || exit 1
+        fi
 
-            #----------rescoring----------
-            echo '[PROCEDURE] rescoring...'
-            echo '[INFO] caculating language model score...'
-            ngram -lm ${lang}/lm.3k.gz -order 3 -ppl ${decode_dir}/decode.txt -debug 1 | grep logprob | cut -d' ' -f4 > ${decode_dir}/lm.3k.score.txt
-            sed -i '$d' ${decode_dir}/lm.3k.score.txt
-            echo '[INFO] language model score computed.'
-            
-            mkdir -p ${decode_dir}/scoring
-            PYTHONIOENCODING=utf-8 python3 -u local/rescore.py \
-                -decode_file ${decode_dir}/decode.txt \
-                -lm_score ${decode_dir}/lm.3k.score.txt \
-                -inv_weight_list 10,11,12,13,13.5,14,14.5,15,15.5,16,16.5,17,18,19,20,1000 \
-                -save_dir ${decode_dir}/scoring > ${decode_dir}/scoring/scoring.log
-            echo '[INFO] computing WER...'
-            for rescore_file in `ls ${decode_dir}/scoring | grep rescore | grep -v wer`; do
-                compute-wer --mode=present ark:${data_dir}/text ark:${decode_dir}/scoring/${rescore_file} \
-                    > ${decode_dir}/scoring/${rescore_file}_wer
-            done
+        #----------rescoring----------
+        echo '[PROCEDURE] rescoring...'
+        echo '[INFO] caculating language model score...'
+        cat ${decode_dir}/decode.txt | cut -d' ' -f2- | ngram -lm ${lang}/lm.3k.gz -order 3 -ppl - -debug 1 | \
+            grep logprob | cut -d' ' -f4 > ${decode_dir}/lm.3k.score.txt
+        sed -i '$d' ${decode_dir}/lm.3k.score.txt
+        echo '[INFO] language model score computed.'
+        
+        mkdir -p ${decode_dir}/scoring
+        PYTHONIOENCODING=utf-8 python3 -u local/rescore.py \
+            -decode_file ${decode_dir}/decode.txt \
+            -lm_score ${decode_dir}/lm.3k.score.txt \
+            -inv_weight_list 10,11,12,13,13.5,14,14.5,15,15.5,16,16.5,17,18,19,20,1000 \
+            -save_dir ${decode_dir}/scoring > ${decode_dir}/scoring/scoring.log
+        echo '[INFO] computing WER...'
+        for rescore_file in `ls ${decode_dir}/scoring | grep rescore | grep -v wer`; do
+            compute-wer --mode=present ark:${data_dir}/text ark:${decode_dir}/scoring/${rescore_file} \
+                > ${decode_dir}/scoring/${rescore_file}_wer
+        done
+    done
 
-            echo '[INFO] best wer presented in file:'
-            grep WER ${decode_dir}/scoring/*wer | best_wer.sh
-        ) &
+    for dir in train dev test; do
+        decode_dir=${model_dir}/decode_${dir}
+        echo '[INFO] best wer presented in file:'
+        grep WER ${decode_dir}/scoring/*wer | best_wer.sh        
     done
 fi

@@ -125,29 +125,33 @@ class Decoder(nn.Module):
     ''' A decoder model with self attention mechanism. '''
     def __init__(
             self, n_tgt_vocab, decoder_max_len, n_layers=2, n_head=3, sub_sequence=(-1,1),
-            d_k=64, d_v=64, d_model=256, d_inner_hid=256, dropout=0.1):
+            d_k=64, d_v=64, en_d_model=256, de_d_model=128, d_inner_hid=128, dropout=0.1):
 
         super(Decoder, self).__init__()
         self.sub = sub_sequence
 
-        self.d_model = d_model
+        self.en_d_model = en_d_model
+        self.de_d_model = de_d_model
         self.dropout = nn.Dropout(dropout)
-        self.position_enc = nn.Embedding(decoder_max_len, d_model, padding_idx=constants.PAD)
-        self.position_enc.weight.data = position_encoding_init(decoder_max_len, d_model)
+        self.position_enc = nn.Embedding(decoder_max_len, de_d_model, padding_idx=constants.PAD)
+        self.position_enc.weight.data = position_encoding_init(decoder_max_len, de_d_model)
         self.position_enc.weight.requires_grad = False
 
-        self.tgt_word_emb = nn.Embedding(n_tgt_vocab, d_model, padding_idx=constants.PAD)
-        self.tgt_word_proj = Linear(d_model, n_tgt_vocab, bias=False)
+        self.tgt_word_emb = nn.Embedding(n_tgt_vocab, de_d_model, padding_idx=constants.PAD)
+        self.tgt_word_proj = Linear(de_d_model, n_tgt_vocab, bias=False)
         self.layer_stack = nn.ModuleList([
-            DecoderLayer(d_model, d_inner_hid, n_head, d_k, d_v, dropout=dropout)
+            DecoderLayer(de_d_model, d_inner_hid, n_head, d_k, d_v, dropout=dropout)
             for _ in range(n_layers)])
+
+        #project the encoder output to dim of decoder
+        self.enc_dec_projection = Linear(en_d_model, de_d_model, bias=False)
 
     def forward(self, tgt_seq, tgt_pad_mask, src_pad_mask, enc_output, return_attns=False):
         tgt_pos = torch.arange(0, tgt_seq.size(1)).long().repeat(tgt_seq.size(0), 1)
         if tgt_seq.is_cuda:
             tgt_pos = tgt_pos.cuda()
         tgt_pos = self.position_enc(tgt_pos)
-
+        enc_output = self.enc_dec_projection(enc_output)
         #word -> dim model
         # warning: embedding require long tensor, maybe it's a waste of menory, waiting to be solved
         tgt_seq = self.tgt_word_emb(tgt_seq)
@@ -183,17 +187,17 @@ class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
             self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len, src_fold=1, encoder_sub_sequence=(-100,0), decoder_sub_sequence=(-20,0),
-            en_layers=2, de_layers=2, n_head=3, d_model=256, d_inner_hid=256, d_k=64, d_v=64, dropout=0.1):
+            en_layers=2, de_layers=2, n_head=3, en_d_model=256, de_d_model=128, d_k=64, d_v=64, dropout=0.1):
 
         super(Transformer, self).__init__()
 
         self.src_fold = src_fold
         self.encoder = Encoder(
             n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, sub_sequence=(-100,0),
-            n_layers=en_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
+            n_layers=en_layers, n_head=n_head, d_model=en_d_model, d_inner_hid=en_d_model, dropout=dropout)
         self.decoder = Decoder(
             n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
-            n_layers=de_layers, n_head=n_head, d_model=d_model, d_inner_hid=d_inner_hid, dropout=dropout)
+            n_layers=de_layers, n_head=n_head, en_d_model=en_d_model, de_d_model=de_d_model ,d_inner_hid=de_d_model, dropout=dropout)
 
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):

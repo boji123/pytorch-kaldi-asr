@@ -34,8 +34,8 @@ def main():
     parser.add_argument('-en_layers', type=int, default=2)
     parser.add_argument('-de_layers', type=int, default=2)
     parser.add_argument('-n_head', type=int, default=3)
-    parser.add_argument('-d_model', type=int, default=256)
-    parser.add_argument('-d_inner_hid', type=int, default=256)
+    parser.add_argument('-en_d_model', type=int, default=256)
+    parser.add_argument('-de_d_model', type=int, default=128)
     parser.add_argument('-d_k', type=int, default=64)
     parser.add_argument('-d_v', type=int, default=64)
     parser.add_argument('-dropout', type=float, default=0.1)
@@ -68,8 +68,8 @@ def main():
         en_layers=opt.en_layers,
         de_layers=opt.de_layers,
         n_head=opt.n_head,
-        d_model=opt.d_model,
-        d_inner_hid=opt.d_inner_hid,
+        en_d_model=opt.en_d_model,
+        de_d_model=opt.de_d_model,
         d_k=opt.d_k,
         d_v=opt.d_v,
         dropout=opt.dropout)
