@@ -14,23 +14,31 @@ set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
 cuda_device=0,1,2,3
-stage=6
-model_suffix=_en256_de128
+stage=0
+model_suffix=_de128L2_cmvn
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
 #speed_perturb=
 speed_perturb=_sp
 lang=data/language
+cmvn=true
 
 if [ $stage -le 0 ]; then
     echo '[PROCEDURE] preparing instances.'
     max_len=500
-    for dataset in train${speed_perturb}${data_perfix} dev${speed_perturb}${data_perfix} test${speed_perturb}${data_perfix}; do
+    for dataset in train${speed_perturb}${data_perfix} dev${data_perfix} test${data_perfix}; do
         #feat-to-len is a kaldi src file, you need to export the path
         feat-to-len scp:data/$dataset/feats.scp ark,t:data/$dataset/feats.length
         #require feats.scp feats.length text
         PYTHONIOENCODING=utf-8 python3 local/trim_instance_length.py -data_dir data/$dataset -output_dir data/${dataset}_filtered -max_len $max_len
+
+        if $cmvn; then
+            apply-cmvn --utt2spk=ark:data/${dataset}_filtered/utt2spk scp:data/${dataset}_filtered/cmvn.scp scp:data/${dataset}_filtered/feats.scp \
+                ark,scp:data/${dataset}_filtered/feats_cmvn.ark,data/${dataset}_filtered/feats_cmvn.scp
+            #replace the origin feats.scp
+            mv data/${dataset}_filtered/feats_cmvn.scp data/${dataset}_filtered/feats.scp
+        fi
     done
 fi
 
@@ -38,9 +46,9 @@ if [ $stage -le 1 ]; then
     echo '[PROCEDURE] preparing vocabulary for output label'
     mkdir -p ${lang}
     python3 local/prepare_vocab.py -read_instances_file data/train${speed_perturb}${data_perfix}/text -save_vocab_file ${lang}/vocab.txt
-    #add the disambig symbol, for generating fst file
-    index=`wc -l test.txt | cut -d' ' -f1`
-    echo "#0 ${index}" >> vocab.txt
+    #add the disambig symbol, for generating fst fize
+    index=`wc -l ${lang}/vocab.txt | cut -d' ' -f1`
+    echo "#0 ${index}" >> ${lang}/vocab.txt
 fi
 
 if [ $stage -le 2 ]; then
@@ -143,14 +151,14 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 6 ]; then
-    model_dir=exp/model_20190227-103032_en256_de128
+    #model_dir=exp/model_20190227-103032_en256_de128
     model_file=`ls ${model_dir}/best*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
       exit 1
     fi
 
-    for dir in train dev test; do
+    for dir in dev test; do
         #----------decoding---------
         echo "[PROCEDURE] decoding ${dir} set... model file is ${model_file}"
         decode_dir=${model_dir}/decode_${dir}
@@ -162,9 +170,9 @@ if [ $stage -le 6 ]; then
                 -read_vocab_file ${lang}/vocab.txt \
                 -load_model_file ${model_file} \
                 -max_token_seq_len 80 \
-                -batch_size 32 \
-                -beam_size 30 \
-                -nbest 10\
+                -batch_size 16 \
+                -beam_size 40 \
+                -nbest 20\
                 -save_result_file ${decode_dir}/decode.txt\
                 -use_gpu || exit 1
         else
@@ -200,7 +208,7 @@ if [ $stage -le 6 ]; then
         done
     done
 
-    for dir in train dev test; do
+    for dir in dev test; do
         decode_dir=${model_dir}/decode_${dir}
         echo '[INFO] best wer presented in file:'
         grep WER ${decode_dir}/scoring/*wer | best_wer.sh        
