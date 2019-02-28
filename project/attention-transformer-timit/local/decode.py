@@ -69,7 +69,7 @@ def translate_batch(model, batch, opt, model_options):
         #       lattice_index(num of results(sum of each beam))
 
         dec_partial_seq = torch.LongTensor(dec_partial_seq)
-        dec_partial_seq_mask = torch.ones(dec_partial_seq.size(), dtype=torch.long) #generate a mask for decoder, actually it's useless in decoding, and can be optimized
+        dec_partial_seq_mask = torch.ones(dec_partial_seq.size(), dtype=torch.uint8) #generate a mask for decoder, actually it's useless in decoding, and can be optimized
         lattice_index = torch.LongTensor(lattice_index)
 
         if opt.use_gpu:
