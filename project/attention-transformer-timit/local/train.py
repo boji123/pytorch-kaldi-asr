@@ -108,7 +108,7 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
         #so we don't need to eval the whole set
         batch_eval_count = 0
         model.eval()
-        batch_loader.mode = 'drop'
+        batch_loader.mode = 'all'
     else:
         print('[ERROR] invalid epoch mode')
     total_loss = 0
