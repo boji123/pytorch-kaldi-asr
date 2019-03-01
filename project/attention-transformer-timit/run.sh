@@ -9,13 +9,13 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0,ram_free=1G"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1,io=0,ram_free=1G"
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_en100de20_error0.05_true
+model_suffix=_error0.05_batch100
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -101,7 +101,7 @@ if [ $stage -le 4 ]; then
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 20000 \
             -epoch 300 \
-            -batch_size 90 \
+            -batch_size 100 \
             -save_model_dir $model_dir \
             -save_interval 10 \
             -use_gpu || exit 1
