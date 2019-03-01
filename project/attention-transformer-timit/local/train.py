@@ -102,11 +102,13 @@ def gengerate_sequence_error(sequence, tgt_pad_mask, error_prob=0.05, random_ran
 def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, batch_eval = 10, use_gpu = False, use_seq_error = True):
     if mode == 'train':
         model.train()
+        batch_loader.mode = 'drop'
     elif mode == 'eval':
         #batch_eval is setted specially for training set
         #so we don't need to eval the whole set
         batch_eval_count = 0
         model.eval()
+        batch_loader.mode = 'drop'
     else:
         print('[ERROR] invalid epoch mode')
     total_loss = 0
@@ -132,6 +134,7 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
             tgt_seq = tgt_seq.cuda()
             tgt_pad_mask = tgt_pad_mask.cuda()
 
+        use_seq_error = True
         if mode == 'train' and use_seq_error:
             seq_error_prob = 0.05
             seq_random_range = [4,51] #including 4 & 51

@@ -143,7 +143,7 @@ def main():
     print('[INFO] loading model with parameter: {}'.format(model_options))
 
 
-    decode_data = initialize_batch_loader(opt.read_data_dir + '/feats.scp', opt.read_data_dir + '/text', opt.read_vocab_file, opt.batch_size)
+    decode_data = initialize_batch_loader(opt.read_data_dir + '/feats.scp', opt.read_data_dir + '/text', opt.read_vocab_file, opt.batch_size, mode='drop')
     print('[INFO] batch loader is initialized')
 
 

@@ -9,13 +9,13 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1,io=0,ram_free=1G"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0,ram_free=1G"
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_de128L2_cmvn
+model_suffix=_en100de20_error0.05_true
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -86,7 +86,7 @@ if [ $stage -le 3 ]; then
         -d_v 64 \
         -dropout 0.25
 fi
-
+#model_dir=exp/model_20190228-135310_error
 if [ $stage -le 4 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     if $use_gpu; then
@@ -122,7 +122,8 @@ if [ $stage -le 4 ]; then
     echo '[INFO] trainning finish.'
 fi
 
-if [ $stage -le 5 ]; then
+#find it useless, jump this step.
+if [ $stage -le -99 ]; then
     echo '[PROCEDURE] combining model... log is in combine.log'
     num_combine=10 # num_combine = num_interval here
     #model_dir=
@@ -151,7 +152,7 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 6 ]; then
-    #model_dir=exp/model_20190227-103032_en256_de128
+    #model_dir=exp/model_20190301-095000_en100de20_re3
     model_file=`ls ${model_dir}/best*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
@@ -210,7 +211,8 @@ if [ $stage -le 6 ]; then
 
     for dir in dev test; do
         decode_dir=${model_dir}/decode_${dir}
-        echo '[INFO] best wer presented in file:'
-        grep WER ${decode_dir}/scoring/*wer | best_wer.sh        
+        echo '[INFO] best wer presented in file:' > $decode_dir/result.txt
+        grep WER ${decode_dir}/scoring/*wer | best_wer.sh >> $decode_dir/result.txt
+        cat $decode_dir/result.txt
     done
 fi
