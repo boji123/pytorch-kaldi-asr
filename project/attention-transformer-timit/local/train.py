@@ -17,7 +17,7 @@ from transformer.Optim import ScheduledOptim
 
 from utils.get_gpu import get_available_gpu_ids
 
-def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file, batch_size):
+def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file, batch_size, mode='drop'):
     utterances = {}
     with open(read_feats_scp_file, encoding='utf-8') as file:
         for line in file:
@@ -51,7 +51,7 @@ def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file
 
     #in batch loader, trainning feature will be loaded while itering
     #it increase io but decrease memory use
-    batch_loader = BatchLoader(trainning_triples, batch_size, pre_load = True, print_info = False)
+    batch_loader = BatchLoader(trainning_triples, batch_size, pre_load = True, print_info = False, mode=mode)
     return batch_loader
 
 
@@ -79,7 +79,27 @@ def get_performance(crit, pred, goal, smoothing=False, num_class=None):
     return loss, n_correct
 
 
-def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, batch_eval = 10, use_gpu = False):
+#for robust training, use this function to generate error sequence, in case error result spreading
+#for each word, it will be setted to a random word by probability error_prob
+#random_range defind the range of available random words (it's about the vocab size)
+def gengerate_sequence_error(sequence, tgt_pad_mask, error_prob=0.05, random_range=[4,51]):
+    #get the pos that should replace
+    if sequence.is_cuda:
+        seq_device = sequence.get_device()
+        pos_mask = torch.rand(sequence.size(), device=seq_device).lt(error_prob).mul(tgt_pad_mask).to(sequence.dtype)
+        num_mask = torch.randint(random_range[0], random_range[1] + 1, sequence.size(), dtype=sequence.dtype, device=seq_device)
+    else:
+        pos_mask = torch.rand(sequence.size()).lt(error_prob).mul(tgt_pad_mask).to(sequence.dtype)
+        num_mask = torch.randint(random_range[0], random_range[1] + 1, sequence.size(), dtype=sequence.dtype)
+
+    num_mask = num_mask.mul(pos_mask)
+    sequence = sequence.mul(1-pos_mask)
+
+    sequence = sequence + num_mask
+    return sequence
+
+
+def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, batch_eval = 10, use_gpu = False, use_seq_error = True):
     if mode == 'train':
         model.train()
     elif mode == 'eval':
@@ -111,6 +131,11 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
             src_pad_mask = src_pad_mask.cuda()
             tgt_seq = tgt_seq.cuda()
             tgt_pad_mask = tgt_pad_mask.cuda()
+
+        if mode == 'train' and use_seq_error:
+            seq_error_prob = 0.05
+            seq_random_range = [4,51] #including 4 & 51
+            tgt_seq = gengerate_sequence_error(tgt_seq, tgt_pad_mask, seq_error_prob, seq_random_range)
 
         goal = tgt_seq[:, 1:]
         tgt_seq = tgt_seq[:, :-1]

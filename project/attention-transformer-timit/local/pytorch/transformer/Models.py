@@ -62,25 +62,6 @@ def fold_seq_and_mask(seq, pad_mask, fold):
         pad_mask = pad_mask[:,fold-1::fold].contiguous()
         return seq, pad_mask
 
-#for robust training, use this function to generate error sequence, in case error result spreading
-#for each word, it will be setted to a random word by probability error_prob
-#random_range defind the range of available random words (it's about the vocab size)
-def gengerate_sequence_error(sequence, tgt_pad_mask, error_prob=0.1, random_range=[4,51]):
-    #get the pos that should replace
-    if sequence.is_cuda:
-        seq_device = sequence.get_device()
-        pos_mask = torch.rand(sequence.size(), device=seq_device).lt(error_prob).mul(tgt_pad_mask).to(sequence.dtype)
-        num_mask = torch.randint(random_range[0], random_range[1] + 1, sequence.size(), dtype=sequence.dtype, device=seq_device)
-    else:
-        pos_mask = torch.rand(sequence.size()).lt(error_prob).mul(tgt_pad_mask).to(sequence.dtype)
-        num_mask = torch.randint(random_range[0], random_range[1] + 1, sequence.size(), dtype=sequence.dtype)
-
-    num_mask = num_mask.mul(pos_mask)
-    sequence = sequence.mul(1-pos_mask)
-
-    sequence = sequence + num_mask
-    return sequence
-
 class Encoder(nn.Module):
     ''' A encoder model with self attention mechanism. '''
     def __init__(
@@ -164,12 +145,8 @@ class Decoder(nn.Module):
 
         #project the encoder output to dim of decoder
         self.enc_dec_projection = Linear(en_d_model, de_d_model, bias=False)
-        self.seq_error_prob = 0.1
-        self.seq_random_range = [4,51] #including 4 & 51
 
     def forward(self, tgt_seq, tgt_pad_mask, src_pad_mask, enc_output, return_attns=False):
-        #tgt_seq = gengerate_sequence_error(tgt_seq, tgt_pad_mask, self.seq_error_prob, self.seq_random_range)
-        #exit(0)
         tgt_pos = torch.arange(0, tgt_seq.size(1)).long().repeat(tgt_seq.size(0), 1)
         if tgt_seq.is_cuda:
             tgt_pos = tgt_pos.cuda()
