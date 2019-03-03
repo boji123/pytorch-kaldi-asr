@@ -97,9 +97,23 @@ def gengerate_sequence_error(sequence, tgt_pad_mask, error_prob=0.05, random_ran
 
     sequence = sequence + num_mask
     return sequence
+#for robust training, use this function to replace sequence with pred sequence
+#may improve performance when error decoding occurs
+def replace_sequence_error(sequence, tgt_pad_mask, pred_sequence, replace_prob=0.1):
+    #get the pos that should replac
+    if sequence.is_cuda:
+        seq_device = sequence.get_device()
+        pos_mask = torch.rand(sequence.size(), device=seq_device).lt(replace_prob).mul(tgt_pad_mask).to(sequence.dtype)
+    else:
+        pos_mask = torch.rand(sequence.size()).lt(replace_prob).mul(tgt_pad_mask).to(sequence.dtype)
 
+    pred_mask = pred_sequence.mul(pos_mask) #confirm position to replace
+    sequence[:,1:] = sequence[:,1:].mul(1-pos_mask[:,:-1]) #zero the position to replace
 
-def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, batch_eval = 10, use_gpu = False, use_seq_error = True):
+    sequence[:,1:] += pred_mask[:,:-1]
+    return sequence
+
+def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, batch_eval = 10, use_gpu = False, seq_error_prob = 0):
     if mode == 'train':
         model.train()
         batch_loader.mode = 'drop'
@@ -134,12 +148,6 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
             tgt_seq = tgt_seq.cuda()
             tgt_pad_mask = tgt_pad_mask.cuda()
 
-        use_seq_error = True
-        if mode == 'train' and use_seq_error:
-            seq_error_prob = 0.05
-            seq_random_range = [4,51] #including 4 & 51
-            tgt_seq = gengerate_sequence_error(tgt_seq, tgt_pad_mask, seq_error_prob, seq_random_range)
-
         goal = tgt_seq[:, 1:]
         tgt_seq = tgt_seq[:, :-1]
         tgt_pad_mask = tgt_pad_mask[:, :-1]
@@ -151,7 +159,22 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
         if mode == 'train':
             optimizer.zero_grad()
 
+        
+        use_seq_error = False
+        if mode == 'train' and use_seq_error and seq_error_prob > 0:
+            seq_random_range = [4,51] #including 4 & 51
+            tgt_seq = gengerate_sequence_error(tgt_seq, tgt_pad_mask, seq_error_prob, seq_random_range)
+        
         pred = model(src_seq, src_pad_mask, tgt_seq, tgt_pad_mask)
+
+        #-------------------error training procedure---------------------------------------
+        use_seq_error = False
+        if mode == 'train' and use_seq_error and seq_error_prob > 0:
+            pred_sequence = pred.max(2)[1]
+            tgt_seq = replace_sequence_error(tgt_seq, tgt_pad_mask, pred_sequence, seq_error_prob)
+            pred = model(src_seq, src_pad_mask, tgt_seq, tgt_pad_mask) #replace the pred result
+        #----------------------------------------------------------------------------------
+
         loss, n_correct = get_performance(crit, pred, goal)
 
         if mode == 'train':
@@ -183,7 +206,7 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
         print('[INFO] trainning epoch {}.'.format(epoch))
 
         start = time.time()
-        train_loss, train_accu = train_epoch(model, train_data, crit, mode = 'train', optimizer = optimizer, use_gpu = opt.use_gpu)
+        train_loss, train_accu = train_epoch(model, train_data, crit, mode = 'train', optimizer = optimizer, use_gpu = opt.use_gpu, seq_error_prob = opt.seq_error_prob)
         print('[INFO]-----(Training)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(train_loss, 100)), 100*train_accu, (time.time()-start)/60))
 
@@ -249,6 +272,7 @@ def main():
     parser.add_argument('-save_model_dir', required=True)
     #the epoch of initialized model is 0, after 1 epoch training, epoch is 1
     #if continue trainning, curr_epoch should be model.epoch + 1
+    parser.add_argument('-seq_error_prob', type=float, default=0)
     parser.add_argument('-epoch', type=int, default=50)
     parser.add_argument('-optim_start_lr', type=float, default=0.001)
     parser.add_argument('-optim_soft_coefficient', type=float, default=1000)

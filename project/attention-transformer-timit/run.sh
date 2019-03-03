@@ -9,13 +9,13 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1,io=0,ram_free=1G"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0,ram_free=1G"
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_error0.05_batch100
+model_suffix=_dev_decode_23.5
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -98,6 +98,7 @@ if [ $stage -le 4 ]; then
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_file ${model_dir}/model.init \
             \
+            -seq_error_prob 0 \
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 20000 \
             -epoch 300 \
@@ -113,6 +114,7 @@ if [ $stage -le 4 ]; then
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_file ${model_dir}/model.init \
             \
+            -seq_error_prob 0 \
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 5000 \
             -epoch 1 \
@@ -152,7 +154,7 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 6 ]; then
-    #model_dir=exp/model_20190301-095000_en100de20_re3
+    model_dir=exp/model_20190303-144034_prob0.2_drop0.25
     model_file=`ls ${model_dir}/best*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
