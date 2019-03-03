@@ -18,8 +18,9 @@ def add_dict(data_dict1, factor, data_dict2):
 
 def sum_average_model(model_list):
     num = len(model_list)
+    print('[INFO] sum averaging {} models'.format(num))
     if num == 1:
-        print('[Warning] find only one model, but calling model combining.')
+        print('[WARNING] find only one model, but calling model combining.')
         return model_list[0]
     else:
         factor = 1/num
@@ -78,16 +79,32 @@ def main():
         print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
             .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
     '''
-    model = sum_average_model(models)
-    if opt.use_gpu:
-        model = model.cuda()
-    start = time.time()
-    test_loss, test_accu = train.train_epoch(model, test_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
-    print('[INFO]-----(evaluating combining set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
-            .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
+    best_accu = 0
+    for i in range(10):
+        print('[INFO] averaging {} models'.format(i+1))
+        if i == 0:
+            model = models[0]
+        else:
+            model = model.cpu()
+            factor = 1/(i+1)
+            curr_data_dict = scale_dict(model.state_dict(), 1 - factor)
+            next_data_dict = add_dict(curr_data_dict, factor, models[i].state_dict())
+            model.load_state_dict(next_data_dict)
 
-    model_name = opt.save_model_dir + '/combined.accu{:3.2f}.torch'.format(100*test_accu)
-    checkpoint['model'] = model
+        if opt.use_gpu:
+            model = model.cuda()
+        start = time.time()
+        test_loss, test_accu = train.train_epoch(model, test_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
+        print('[INFO]-----(evaluating combining set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
+                .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
+        if test_accu > best_accu:
+            best_accu = test_accu
+            best_model = model
+
+    print('[INFO] best model with accuracy: {:3.2f} %'.format(100*best_accu))
+
+    model_name = opt.save_model_dir + '/combined.accu{:3.2f}.torch'.format(100*best_accu)
+    checkpoint['model'] = best_model
     torch.save(checkpoint, model_name)
 
 if __name__ == '__main__':
