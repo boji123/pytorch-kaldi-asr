@@ -239,7 +239,7 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
                 'model_options': model_options,
                 'epoch': epoch,
                 'train_options': opt}
-            model_name = opt.save_model_dir + '/epoch{}.accu{:3.2f}.torch'.format(epoch, 100*valid_accu)
+            model_name = opt.save_model_dir + '/epoch.{}.torch'.format(epoch)
             torch.save(checkpoint, model_name)
             print('[INFO] checkpoint of epoch {} is saved to {}'.format(epoch, model_name))
 
@@ -253,6 +253,58 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
     model_name = opt.save_model_dir + '/best.epoch{}.accu{:3.2f}.torch'.format(best_epoch, 100*best_accu)
     torch.save(checkpoint, model_name)
     print('[INFO] best model is saved to {}'.format(model_name))
+    return best_accu, best_epoch
+
+
+#-------------------------------for model combining-------------------------------
+def scale_dict(data_dict, factor):
+    data_dict = {key: data_dict[key].mul(factor) for key in data_dict}
+    return data_dict
+
+def add_dict(data_dict1, factor, data_dict2):
+    data_dict = {key: data_dict1[key].add(factor, data_dict2[key]) for key in data_dict1}
+    return data_dict
+
+def combine(opt, epoch, crit, data, num_model = 20):
+    print('[PROCEDURE] combining model with model averaging...')
+    start = epoch
+    end = epoch - num_model
+    models = []
+    for i in range(start, end, -1):
+        filename = 'epoch.{}.torch'.format(i)
+        checkpoint = torch.load(opt.save_model_dir + '/' + filename, map_location=lambda storage, loc: storage)
+        train_options = checkpoint['train_options']
+        models.append(checkpoint['model'])
+    print('[INFO] model loaded')
+
+    best_accu = 0
+    for i in range(num_model):
+        print('[INFO] averaging {} models'.format(i+1))
+        if i == 0:
+            model = models[0]
+        else:
+            model = model.cpu()
+            factor = 1/(i+1)
+            curr_data_dict = scale_dict(model.state_dict(), 1 - factor)
+            next_data_dict = add_dict(curr_data_dict, factor, models[i].state_dict())
+            model.load_state_dict(next_data_dict)
+
+        if opt.use_gpu:
+            model = model.cuda()
+        start = time.time()
+        test_loss, test_accu = train_epoch(model, data, crit, mode = 'eval', use_gpu = opt.use_gpu)
+        print('[INFO]-----(evaluating combining set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
+                .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
+        if test_accu > best_accu:
+            best_accu = test_accu
+            best_model = model
+
+    print('[INFO] best combined model with accuracy: {:3.2f} %'.format(100*best_accu))
+
+    model_name = opt.save_model_dir + '/combined.accu{:3.2f}.torch'.format(100*best_accu)
+    checkpoint['model'] = best_model
+    torch.save(checkpoint, model_name)
+#---------------------------------------------------------------------------------------------------
 
 
 def get_criterion(vocab_size):
@@ -324,8 +376,14 @@ def main():
     print('[INFO] batch loader is initialized')
 
     print('[PROCEDURE] trainning start...')
-    train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options)
+    best_accu, best_epoch = train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_options)
 
+    print('[PROCEDURE] combining start on best epoch {}'.format(best_epoch))
+    if opt.epoch > 30:
+        num = 30
+    else:
+        num = opt.epoch
+    best_accu = combine(opt, best_epoch, crit, dev_data, num_model = num)
 
 if __name__ == '__main__':
     main()

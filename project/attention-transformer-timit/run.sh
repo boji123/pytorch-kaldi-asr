@@ -15,7 +15,7 @@ set -e # exit on error
 use_gpu=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_dev_decode_23.5
+model_suffix=_combining
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -91,7 +91,7 @@ if [ $stage -le 4 ]; then
     echo '[PROCEDURE] trainning start... log is in train.log'
     if $use_gpu; then
         #attention: for keeping it same as origin one, the dev and test set should'n apply speed perturb
-        $cuda_cmd ${model_dir}/train${model_suffix}.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/train.py \
+        $cuda_cmd ${model_dir}/train.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/train.py \
             -read_train_dir data/train${speed_perturb}${data_perfix}_filtered \
             -read_dev_dir data/dev${data_perfix}_filtered \
             -read_test_dir data/test${data_perfix}_filtered \
@@ -104,7 +104,7 @@ if [ $stage -le 4 ]; then
             -epoch 300 \
             -batch_size 100 \
             -save_model_dir $model_dir \
-            -save_interval 10 \
+            -save_interval 1 \
             -use_gpu || exit 1
     else
         PYTHONIOENCODING=utf-8 python3 -u local/train.py \
@@ -119,11 +119,13 @@ if [ $stage -le 4 ]; then
             -optim_soft_coefficient 5000 \
             -epoch 1 \
             -batch_size 90 \
-            -save_model_dir $model_dir || exit 1
+            -save_model_dir $model_dir \
+            -save_interval 1 || exit 1
     fi
     echo '[INFO] trainning finish.'
 fi
 
+#model_dir=exp/model_20190303-115238_randerror0.0_C
 #find it useless, jump this step.
 if [ $stage -le -99 ]; then
     echo '[PROCEDURE] combining model... log is in combine.log'
@@ -132,7 +134,7 @@ if [ $stage -le -99 ]; then
     model_list=`ls ${model_dir} --sort=time | grep ^epoch.*.torch$ | head -${num_combine}`
 
     if $use_gpu; then
-        $cuda_cmd ${model_dir}/combine${model_suffix}.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
+        $cuda_cmd ${model_dir}/combine.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
             -read_test_dir data/dev_hires_filtered \
             -read_vocab_file ${lang}/vocab.txt \
             -load_model_dir $model_dir \
@@ -154,8 +156,8 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 6 ]; then
-    model_dir=exp/model_20190303-144034_prob0.2_drop0.25
-    model_file=`ls ${model_dir}/best*`
+    #model_dir=exp/model_20190304-012024_test_combining
+    model_file=`ls ${model_dir}/combine*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
       exit 1
