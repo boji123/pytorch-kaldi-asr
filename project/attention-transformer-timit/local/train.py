@@ -207,20 +207,20 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
 
         start = time.time()
         train_loss, train_accu = train_epoch(model, train_data, crit, mode = 'train', optimizer = optimizer, use_gpu = opt.use_gpu, seq_error_prob = opt.seq_error_prob)
-        print('[INFO]-----(Training)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
-            .format(math.exp(min(train_loss, 100)), 100*train_accu, (time.time()-start)/60))
+        print('[INFO]-----(Training)----- accuracy: {:3.2f} %, elapse: {:3.2f} min'
+            .format(100*train_accu, (time.time()-start)/60))
 
         #eval the training result(after dropout off)
         start = time.time()
         eval_batch_num = 10
         valid_loss, valid_accu = train_epoch(model, train_data, crit, mode = 'eval', batch_eval = eval_batch_num, use_gpu = opt.use_gpu)
-        print('[INFO]-----(evaluating train set for {} batch)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
-            .format(eval_batch_num, math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
+        print('[INFO]-----(evaluating train set for {} batch)----- accuracy: {:3.2f} %, elapse: {:3.2f} min'
+            .format(eval_batch_num, 100*valid_accu, (time.time()-start)/60))
 
         start = time.time()
         valid_loss, valid_accu = train_epoch(model, dev_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
-        print('[INFO]-----(evaluating dev set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
-            .format(math.exp(min(valid_loss, 100)), 100*valid_accu, (time.time()-start)/60))
+        print('[INFO]-----(evaluating dev set)----- accuracy: {:3.2f} %, elapse: {:3.2f} min'
+            .format(100*valid_accu, (time.time()-start)/60))
 
         if valid_accu > best_accu:
             best_accu = valid_accu
@@ -229,8 +229,8 @@ def train(model, train_data, dev_data, test_data, crit, optimizer, opt, model_op
 
         start = time.time()
         test_loss, test_accu = train_epoch(model, test_data, crit, mode = 'eval', use_gpu = opt.use_gpu)
-        print('[INFO]-----(evaluating test set)----- ppl: {:7.3f}, accuracy: {:3.2f} %, elapse: {:3.2f} min'
-            .format(math.exp(min(test_loss, 100)), 100*test_accu, (time.time()-start)/60))
+        print('[INFO]-----(evaluating test set)----- accuracy: {:3.2f} %, elapse: {:3.2f} min'
+            .format(100*test_accu, (time.time()-start)/60))
 
         #early model will be saved only at each interval, and all of model in the last interval will be keep for model combining
         if epoch % opt.save_interval == 0 or opt.epoch - epoch < opt.save_interval:
@@ -380,10 +380,10 @@ def main():
 
     print('[PROCEDURE] combining start on best epoch {}'.format(best_epoch))
     if opt.epoch > 30:
-        num = 30
+        num_model = 30
     else:
-        num = opt.epoch
-    best_accu = combine(opt, best_epoch, crit, dev_data, num_model = num)
+        num_model = opt.epoch
+    best_accu = combine(opt, best_epoch, crit, dev_data, num_model)
 
 if __name__ == '__main__':
     main()

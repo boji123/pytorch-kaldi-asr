@@ -9,13 +9,14 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-6.local -l gpu=1,io=0,ram_free=1G"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-4.local -l gpu=1,io=0,ram_free=1G"
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
+clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_combining
+model_suffix=_combining_4
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -123,9 +124,12 @@ if [ $stage -le 4 ]; then
             -save_interval 1 || exit 1
     fi
     echo '[INFO] trainning finish.'
+    if $clean_dir; then
+        rm  ${model_dir}/epoch.*
+        echo '[INFO] trainning dir cleaned'
 fi
 
-#model_dir=exp/model_20190303-115238_randerror0.0_C
+#model_dir=exp/model_20190304-012024_test_combining
 #find it useless, jump this step.
 if [ $stage -le -99 ]; then
     echo '[PROCEDURE] combining model... log is in combine.log'
@@ -151,7 +155,7 @@ if [ $stage -le -99 ]; then
     fi
     echo '[INFO] combining finish.'
 fi
-
+#exit 0
 #------------------------------------------------------------
 #decode & rescore
 #------------------------------------------------------------
