@@ -359,7 +359,7 @@ def main():
 
     optimizer = ScheduledOptim(
         optim.Adam(model.parameters(),
-            betas=(0.9, 0.98), eps=1e-09),
+            betas=(0.9, 0.999), eps=1e-08),
         start_lr = opt.optim_start_lr,
         soft_coefficient = opt.optim_soft_coefficient)
     print('[INFO] using adam as optimizer.')
