@@ -15,7 +15,7 @@ set -e # exit on error
 use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
-stage=3
+stage=5
 model_suffix=_combining_4
 #------------------------------------------------------------
 #data_perfix=
@@ -127,40 +127,15 @@ if [ $stage -le 4 ]; then
     if $clean_dir; then
         rm  ${model_dir}/epoch.*
         echo '[INFO] trainning dir cleaned'
-fi
-
-#model_dir=exp/model_20190304-012024_test_combining
-#find it useless, jump this step.
-if [ $stage -le -99 ]; then
-    echo '[PROCEDURE] combining model... log is in combine.log'
-    num_combine=10 # num_combine = num_interval here
-    #model_dir=
-    model_list=`ls ${model_dir} --sort=time | grep ^epoch.*.torch$ | head -${num_combine}`
-
-    if $use_gpu; then
-        $cuda_cmd ${model_dir}/combine.log CUDA_VISIBLE_DEVICES=${cuda_device} PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
-            -read_test_dir data/dev_hires_filtered \
-            -read_vocab_file ${lang}/vocab.txt \
-            -load_model_dir $model_dir \
-            -load_model_file_list ${model_list} \
-            -save_model_dir $model_dir \
-            -use_gpu || exit 1
-    else
-        PYTHONIOENCODING=utf-8 python3 -u local/combine.py \
-            -read_test_dir data/dev_hires_filtered \
-            -read_vocab_file ${lang}/vocab.txt \
-            -load_model_dir $model_dir \
-            -load_model_file_list ${model_list} \
-            -save_model_dir $model_dir || exit 1
     fi
-    echo '[INFO] combining finish.'
 fi
-#exit 0
+
+
 #------------------------------------------------------------
 #decode & rescore
 #------------------------------------------------------------
-if [ $stage -le 6 ]; then
-    #model_dir=exp/model_20190304-012024_test_combining
+if [ $stage -le 5 ]; then
+    model_dir=exp/model_20190304-105036_combining_4
     model_file=`ls ${model_dir}/combine*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
