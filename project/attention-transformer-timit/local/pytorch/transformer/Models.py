@@ -6,7 +6,8 @@ from utils import constants
 from transformer.Modules import BottleLinear as Linear
 from transformer.Layers import EncoderLayer, DecoderLayer
 import torch.nn.functional as F
-__author__ = "Yu-Hsiang Huang"
+
+from TDNN import TDNNLayer
 
 # further edited by liu.baiji
 # adapted for speech recognition
@@ -121,6 +122,59 @@ class Encoder(nn.Module):
         else:
             return enc_output,
 
+
+class EncoderTest(nn.Module):
+    ''' A encoder model with self attention mechanism. '''
+    def __init__(self, n_src_dim, encoder_max_len, d_model=256, dropout=0.1):
+
+        super(EncoderTest, self).__init__()
+        self.d_model = d_model
+        self.dropout = nn.Dropout(dropout)
+
+        self.position_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
+        self.position_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
+        self.position_enc.weight.requires_grad = False
+
+        self.trans_pos_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
+        self.trans_pos_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
+        self.trans_pos_enc.weight.requires_grad = False
+
+        #project the source to dim of model
+        self.src_projection = Linear(n_src_dim, d_model, bias=False)
+
+        self.tdnn_layer1 = TDNNLayer(d_model, d_model, [-1, 1], dropout=dropout)
+        self.tdnn_layer2 = TDNNLayer(d_model, d_model, [-1, 1], dropout=dropout)
+        self.tdnn_layer3 = TDNNLayer(d_model, d_model, [-2, 2], dropout=dropout)
+        self.tdnn_layer4 = TDNNLayer(d_model, d_model, [-2, 2], dropout=dropout)
+        self.tdnn_layer5 = TDNNLayer(d_model, d_model, [-3, 3], dropout=dropout)
+        self.tdnn_layer6 = TDNNLayer(d_model, d_model, [-3, 3], dropout=dropout)      
+
+    def forward(self, src_seq, src_pad_mask):
+        src_pos = torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1)
+        if src_seq.is_cuda:
+            src_pos = src_pos.cuda()
+        trans_pos = self.trans_pos_enc(src_pos)
+        src_pos = self.position_enc(src_pos)
+
+        #src_seq batch*len*featdim -> batch*len*modeldim
+        src_seq = self.src_projection(src_seq)
+        
+        #enc_output = src_seq + src_pos
+        #enc_output = self.dropout(enc_output)
+
+        #TDNN
+        enc_output = self.tdnn_layer1(src_seq)
+        enc_output = self.tdnn_layer2(enc_output)
+        enc_output = self.tdnn_layer3(enc_output)
+        enc_output = self.tdnn_layer4(enc_output)
+        enc_output = self.tdnn_layer5(enc_output)
+        enc_output = self.tdnn_layer6(enc_output)
+
+        enc_output = enc_output + trans_pos
+        enc_output = self.dropout(enc_output)
+        return enc_output
+
+
 class Decoder(nn.Module):
     ''' A decoder model with self attention mechanism. '''
     def __init__(
@@ -194,19 +248,24 @@ class Transformer(nn.Module):
         super(Transformer, self).__init__()
 
         self.src_fold = src_fold
+        '''
         self.encoder = Encoder(
             n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, sub_sequence=(-100,0),
             n_layers=en_layers, n_head=n_head, d_model=en_d_model, d_inner_hid=en_d_model, dropout=dropout)
+        '''
         self.decoder = Decoder(
             n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
             n_layers=de_layers, n_head=n_head, en_d_model=en_d_model, de_d_model=de_d_model ,d_inner_hid=de_d_model, dropout=dropout)
+
+        self.encoder_test = EncoderTest(n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, d_model=en_d_model, dropout=dropout)
 
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):
         #reshape the input and input mask: length/fold, dim*fold
         src_seq, src_pad_mask = fold_seq_and_mask(src_seq, src_pad_mask, self.src_fold)
 
-        enc_output, *_ = self.encoder(src_seq, src_pad_mask)
+        #enc_output, *_ = self.encoder_test(src_seq, src_pad_mask)
+        enc_output = self.encoder_test(src_seq, src_pad_mask)
         dec_output, *_ = self.decoder(tgt_seq, tgt_pad_mask, src_pad_mask, enc_output)
         #return batch*seq len*word dim
         return dec_output

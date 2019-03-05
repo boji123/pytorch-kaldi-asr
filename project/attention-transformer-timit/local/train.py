@@ -130,7 +130,8 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
     n_total_correct = 0
 
 
-    for batch in tqdm(batch_loader, mininterval=2, desc='({})'.format(mode)):
+    #for batch in tqdm(batch_loader, mininterval=2, desc='({})'.format(mode)):
+    for batch in batch_loader:
         src_seq = batch[1]
         src_pad_mask = batch[2]
         tgt_seq = batch[3]

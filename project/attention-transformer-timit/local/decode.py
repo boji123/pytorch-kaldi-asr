@@ -44,7 +44,8 @@ def translate_batch(model, batch, opt, model_options):
     #---------------------------------------------------------------------------------------
     #- Enocde
     src_seq, src_pad_mask = fold_seq_and_mask(src_seq, src_pad_mask, model.src_fold)
-    enc_output, *_ = model.encoder(src_seq, src_pad_mask)
+    #enc_output, *_ = model.encoder(src_seq, src_pad_mask)
+    enc_output = model.encoder_test(src_seq, src_pad_mask)
 
     #--- Prepare beams
     lattices = [Lattice(opt.max_token_seq_len, beam_size) for _ in range(batch_size)]

@@ -9,14 +9,14 @@
 #it is edited to adapt the project path around line 373
 export train_cmd="queue.pl -q CPU_QUEUE -l ram_free=3G,mem_free=3G,io=3.125"
 export cuda_cmd="queue.pl -q GPU_QUEUE@@amax2017 -l gpu=1"
-export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-4.local -l gpu=1,io=0,ram_free=1G"
+export cuda_cmd="queue.pl -q GPU_QUEUE@compute-0-5.local -l gpu=1,io=0,ram_free=1G"
 set -e # exit on error
 #------------------------------------------------------------
 use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=5
-model_suffix=_combining_4
+model_suffix=_tdnn_6layer
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -101,8 +101,8 @@ if [ $stage -le 4 ]; then
             \
             -seq_error_prob 0 \
             -optim_start_lr 0.001 \
-            -optim_soft_coefficient 20000 \
-            -epoch 300 \
+            -optim_soft_coefficient 25000 \
+            -epoch 600 \
             -batch_size 100 \
             -save_model_dir $model_dir \
             -save_interval 1 \
@@ -135,7 +135,7 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 5 ]; then
-    model_dir=exp/model_20190304-105036_combining_4
+    model_dir=exp/model_20190305-181814_tdnn_6layer
     model_file=`ls ${model_dir}/combine*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
