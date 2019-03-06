@@ -15,8 +15,8 @@ set -e # exit on error
 use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
-stage=5
-model_suffix=_tdnn_6layer
+stage=3
+model_suffix=_tdnn_6layer2
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -102,7 +102,7 @@ if [ $stage -le 4 ]; then
             -seq_error_prob 0 \
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 25000 \
-            -epoch 600 \
+            -epoch 800 \
             -batch_size 100 \
             -save_model_dir $model_dir \
             -save_interval 1 \
@@ -135,7 +135,7 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 5 ]; then
-    model_dir=exp/model_20190305-181814_tdnn_6layer
+    #model_dir=exp/model_20190305-181814_tdnn_6layer
     model_file=`ls ${model_dir}/combine*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."

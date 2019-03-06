@@ -142,12 +142,12 @@ class EncoderTest(nn.Module):
         #project the source to dim of model
         self.src_projection = Linear(n_src_dim, d_model, bias=False)
 
-        self.tdnn_layer1 = TDNNLayer(d_model, d_model, [-1, 1], dropout=dropout)
-        self.tdnn_layer2 = TDNNLayer(d_model, d_model, [-1, 1], dropout=dropout)
-        self.tdnn_layer3 = TDNNLayer(d_model, d_model, [-2, 2], dropout=dropout)
-        self.tdnn_layer4 = TDNNLayer(d_model, d_model, [-2, 2], dropout=dropout)
-        self.tdnn_layer5 = TDNNLayer(d_model, d_model, [-3, 3], dropout=dropout)
-        self.tdnn_layer6 = TDNNLayer(d_model, d_model, [-3, 3], dropout=dropout)      
+        self.tdnn_layer1 = TDNNLayer(d_model, d_model, [-1, 0, 1], dropout=dropout)
+        self.tdnn_layer2 = TDNNLayer(d_model, d_model, [-1, 0, 1], dropout=dropout)
+        self.tdnn_layer3 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)
+        self.tdnn_layer4 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)
+        self.tdnn_layer5 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)
+        self.tdnn_layer6 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)      
 
     def forward(self, src_seq, src_pad_mask):
         src_pos = torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1)
