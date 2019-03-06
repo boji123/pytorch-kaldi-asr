@@ -125,7 +125,7 @@ class Encoder(nn.Module):
 
 class EncoderTest(nn.Module):
     ''' A encoder model with self attention mechanism. '''
-    def __init__(self, n_src_dim, encoder_max_len, d_model=256, dropout=0.1):
+    def __init__(self, n_src_dim, encoder_max_len, d_model=256, dropout=0.1, contexts=[[0]]):
 
         super(EncoderTest, self).__init__()
         self.d_model = d_model
@@ -142,12 +142,9 @@ class EncoderTest(nn.Module):
         #project the source to dim of model
         self.src_projection = Linear(n_src_dim, d_model, bias=False)
 
-        self.tdnn_layer1 = TDNNLayer(d_model, d_model, [-1, 0, 1], dropout=dropout)
-        self.tdnn_layer2 = TDNNLayer(d_model, d_model, [-1, 0, 1], dropout=dropout)
-        self.tdnn_layer3 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)
-        self.tdnn_layer4 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)
-        self.tdnn_layer5 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)
-        self.tdnn_layer6 = TDNNLayer(d_model, d_model, [-3, 0, 3], dropout=dropout)      
+
+        self.tdnn_stack = nn.ModuleList([TDNNLayer(d_model, d_model, context, dropout=dropout) for context in contexts])
+
 
     def forward(self, src_seq, src_pad_mask):
         src_pos = torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1)
@@ -157,18 +154,12 @@ class EncoderTest(nn.Module):
         src_pos = self.position_enc(src_pos)
 
         #src_seq batch*len*featdim -> batch*len*modeldim
-        src_seq = self.src_projection(src_seq)
-        
-        #enc_output = src_seq + src_pos
-        #enc_output = self.dropout(enc_output)
+        enc_output = self.src_projection(src_seq)
+        enc_output = self.dropout(enc_output)
 
         #TDNN
-        enc_output = self.tdnn_layer1(src_seq)
-        enc_output = self.tdnn_layer2(enc_output)
-        enc_output = self.tdnn_layer3(enc_output)
-        enc_output = self.tdnn_layer4(enc_output)
-        enc_output = self.tdnn_layer5(enc_output)
-        enc_output = self.tdnn_layer6(enc_output)
+        for tdnn_layer in self.tdnn_stack:
+            enc_output = tdnn_layer(enc_output)
 
         enc_output = enc_output + trans_pos
         enc_output = self.dropout(enc_output)
@@ -243,7 +234,7 @@ class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
             self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len, src_fold=1, encoder_sub_sequence=(-100,0), decoder_sub_sequence=(-20,0),
-            en_layers=2, de_layers=2, n_head=3, en_d_model=256, de_d_model=128, d_k=64, d_v=64, dropout=0.1):
+            en_layers=2, de_layers=2, n_head=3, en_d_model=256, de_d_model=128, d_k=64, d_v=64, dropout=0.1, tdnn_contexts=[[0]]):
 
         super(Transformer, self).__init__()
 
@@ -257,7 +248,7 @@ class Transformer(nn.Module):
             n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
             n_layers=de_layers, n_head=n_head, en_d_model=en_d_model, de_d_model=de_d_model ,d_inner_hid=de_d_model, dropout=dropout)
 
-        self.encoder_test = EncoderTest(n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, d_model=en_d_model, dropout=dropout)
+        self.encoder_test = EncoderTest(n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, d_model=en_d_model, dropout=dropout, contexts=tdnn_contexts)
 
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):

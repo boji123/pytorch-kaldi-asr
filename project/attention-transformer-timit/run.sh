@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_tdnn_6layer2
+model_suffix=_tdnn_6layer
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires

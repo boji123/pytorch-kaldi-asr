@@ -43,6 +43,13 @@ def main():
     parser.add_argument('-save_model_file', required=True)
     opt = parser.parse_args()
     
+    opt.tdnn_contexts = [[-1, 0, 1],
+                         [-1, 0, 1],
+                         [-3, 0, 3],
+                         [-3, 0, 3],
+                         [-3, 0, 3],
+                         [-3, 0, 3]]
+
     opt.encoder_sub_sequence = str2tuple(opt.encoder_sub_sequence)
     opt.decoder_sub_sequence = str2tuple(opt.decoder_sub_sequence)
 
@@ -72,7 +79,8 @@ def main():
         de_d_model=opt.de_d_model,
         d_k=opt.d_k,
         d_v=opt.d_v,
-        dropout=opt.dropout)
+        dropout=opt.dropout,
+        tdnn_contexts=opt.tdnn_contexts)
 
     checkpoint = {
         'model': model,
