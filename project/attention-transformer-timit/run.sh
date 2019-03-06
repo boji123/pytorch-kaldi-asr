@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_tdnn_6layer
+model_suffix=_tdnn_delen10
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -76,7 +76,7 @@ if [ $stage -le 3 ]; then
         -decoder_max_len 80 \
         -src_fold 2 \
         -encoder_sub_sequence '(-100,0)' \
-        -decoder_sub_sequence '(-20,0)' \
+        -decoder_sub_sequence '(-10,0)' \
         \
         -en_layers 3 \
         -de_layers 2 \
