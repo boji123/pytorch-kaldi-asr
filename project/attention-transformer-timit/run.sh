@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_tdnn_delen10_head2
+model_suffix=_fold1
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -74,7 +74,7 @@ if [ $stage -le 3 ]; then
         \
         -encoder_max_len 500 \
         -decoder_max_len 80 \
-        -src_fold 2 \
+        -src_fold 1 \
         -encoder_sub_sequence '(-100,0)' \
         -decoder_sub_sequence '(-10,0)' \
         \
