@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_tdnn_delen10
+model_suffix=_tdnn_delen10_head2
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -80,7 +80,7 @@ if [ $stage -le 3 ]; then
         \
         -en_layers 3 \
         -de_layers 2 \
-        -n_head 3 \
+        -n_head 2 \
         -en_d_model 256 \
         -de_d_model 128 \
         -d_k 64 \
