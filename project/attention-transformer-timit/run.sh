@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_fold1
+model_suffix=_fold1_drop0.3
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -85,7 +85,7 @@ if [ $stage -le 3 ]; then
         -de_d_model 128 \
         -d_k 64 \
         -d_v 64 \
-        -dropout 0.25
+        -dropout 0.3
 fi
 #model_dir=exp/model_20190228-135310_error
 if [ $stage -le 4 ]; then
