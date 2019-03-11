@@ -8,7 +8,8 @@ from transformer.Layers import EncoderLayer, DecoderLayer
 import torch.nn.functional as F
 
 from TDNN import TDNNLayer
-
+from TDNN import ConcatLayer
+from TDNN import LDALayer
 # further edited by liu.baiji
 # adapted for speech recognition
 
@@ -125,41 +126,39 @@ class Encoder(nn.Module):
 
 class EncoderTest(nn.Module):
     ''' A encoder model with self attention mechanism. '''
-    def __init__(self, n_src_dim, encoder_max_len, d_model=256, dropout=0.1, contexts=[[0]]):
+    def __init__(self, lda_mat, n_src_dim, encoder_max_len, d_model=256, dropout=0.1, contexts=[[0]]):
 
         super(EncoderTest, self).__init__()
         self.d_model = d_model
         self.dropout = nn.Dropout(dropout)
-
-        self.position_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
-        self.position_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
-        self.position_enc.weight.requires_grad = False
 
         self.trans_pos_enc = nn.Embedding(encoder_max_len, d_model, padding_idx=constants.PAD)
         self.trans_pos_enc.weight.data = position_encoding_init(encoder_max_len, d_model)
         self.trans_pos_enc.weight.requires_grad = False
 
         #project the source to dim of model
-        self.src_projection = Linear(n_src_dim, d_model, bias=False)
-
+        lda_concat_index = [-2,-1,0,1,2]
+        self.concat = ConcatLayer(lda_concat_index)
+        self.lda_layer = LDALayer(lda_mat)
+        self.src_projection = Linear(n_src_dim * len(lda_concat_index), d_model, bias=False)
 
         self.tdnn_stack = nn.ModuleList([TDNNLayer(d_model, d_model, context, dropout=dropout) for context in contexts])
 
-
     def forward(self, src_seq, src_pad_mask):
-        src_pos = torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1)
-        if src_seq.is_cuda:
-            src_pos = src_pos.cuda()
-        trans_pos = self.trans_pos_enc(src_pos)
-        src_pos = self.position_enc(src_pos)
-
+        #applying lda
+        src_seq = self.lda_layer(self.concat(src_seq))
         #src_seq batch*len*featdim -> batch*len*modeldim
-        enc_output = self.src_projection(src_seq)
-        enc_output = self.dropout(enc_output)
+        src_seq = self.src_projection(src_seq)
+        enc_output = self.dropout(src_seq)
 
         #TDNN
         for tdnn_layer in self.tdnn_stack:
             enc_output = tdnn_layer(enc_output)
+
+        src_pos = torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1)
+        if src_seq.is_cuda:
+            src_pos = src_pos.cuda()
+        trans_pos = self.trans_pos_enc(src_pos)
 
         enc_output = enc_output + trans_pos
         enc_output = self.dropout(enc_output)
@@ -233,7 +232,7 @@ class Decoder(nn.Module):
 class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
-            self, n_src_dim, n_tgt_vocab, encoder_max_len, decoder_max_len, src_fold=1, encoder_sub_sequence=(-100,0), decoder_sub_sequence=(-20,0),
+            self, n_src_dim, n_tgt_vocab, lda_mat, encoder_max_len, decoder_max_len, src_fold=1, encoder_sub_sequence=(-100,0), decoder_sub_sequence=(-20,0),
             en_layers=2, de_layers=2, n_head=3, en_d_model=256, de_d_model=128, d_k=64, d_v=64, dropout=0.1, tdnn_contexts=[[0]]):
 
         super(Transformer, self).__init__()
@@ -248,7 +247,7 @@ class Transformer(nn.Module):
             n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
             n_layers=de_layers, n_head=n_head, en_d_model=en_d_model, de_d_model=de_d_model ,d_inner_hid=de_d_model, dropout=dropout)
 
-        self.encoder_test = EncoderTest(n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, d_model=en_d_model, dropout=dropout, contexts=tdnn_contexts)
+        self.encoder_test = EncoderTest(lda_mat=lda_mat, n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, d_model=en_d_model, dropout=dropout, contexts=tdnn_contexts)
 
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):

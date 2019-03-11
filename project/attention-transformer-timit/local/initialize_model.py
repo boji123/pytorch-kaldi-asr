@@ -64,9 +64,11 @@ def main():
 
     print('[INFO] model will initialized with add_argument:\n\t{}.'.format(opt))
 
+    lda_mat = kaldi_io.read_mat('data/lda.mat')
     model = Transformer(
         opt.src_dim,
         opt.tgt_vocab_dim,
+        lda_mat=lda_mat,
         encoder_max_len=opt.encoder_max_len,
         decoder_max_len=opt.decoder_max_len,
         src_fold=opt.src_fold,
