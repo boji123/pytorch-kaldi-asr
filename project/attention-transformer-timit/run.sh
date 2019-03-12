@@ -105,7 +105,7 @@ if [ $stage -le 4 ]; then
             -seq_error_prob 0 \
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 25000 \
-            -epoch 800 \
+            -epoch 600 \
             -batch_size 100 \
             -save_model_dir $model_dir \
             -save_interval 1 \
