@@ -141,26 +141,27 @@ class EncoderTest(nn.Module):
         self.concat = ConcatLayer(lda_concat_index)
         self.lda_layer = LDALayer(lda_mat)
         self.src_projection = Linear(n_src_dim * len(lda_concat_index), d_model, bias=False)
-
+        #self.tdnn0 = TDNNLayer(n_src_dim * len(lda_concat_index), d_model, contexts[0], dropout=dropout)
         self.tdnn_stack = nn.ModuleList([TDNNLayer(d_model, d_model, context, dropout=dropout) for context in contexts])
 
     def forward(self, src_seq, src_pad_mask):
-        #applying lda
-        src_seq = self.lda_layer(self.concat(src_seq))
-        #src_seq batch*len*featdim -> batch*len*modeldim
-        src_seq = self.src_projection(src_seq)
-        enc_output = self.dropout(src_seq)
-
-        #TDNN
-        for tdnn_layer in self.tdnn_stack:
-            enc_output = tdnn_layer(enc_output)
-
         src_pos = torch.arange(0, src_seq.size(1)).long().repeat(src_seq.size(0), 1)
         if src_seq.is_cuda:
             src_pos = src_pos.cuda()
         trans_pos = self.trans_pos_enc(src_pos)
 
-        enc_output = enc_output + trans_pos
+        #applying lda
+        src_seq = self.lda_layer(self.concat(src_seq))
+        #src_seq batch*len*featdim -> batch*len*modeldim
+        src_seq = self.src_projection(src_seq)
+        src_seq = self.dropout(src_seq)
+
+        #TDNN
+        #src_seq = self.tdnn0(src_seq)
+        for tdnn_layer in self.tdnn_stack:
+            src_seq = tdnn_layer(src_seq)
+
+        enc_output = src_seq + trans_pos
         enc_output = self.dropout(enc_output)
         return enc_output
 
@@ -233,7 +234,7 @@ class Transformer(nn.Module):
     ''' A sequence to sequence model with attention mechanism. '''
     def __init__(
             self, n_src_dim, n_tgt_vocab, lda_mat, encoder_max_len, decoder_max_len, src_fold=1, encoder_sub_sequence=(-100,0), decoder_sub_sequence=(-20,0),
-            en_layers=2, de_layers=2, n_head=3, en_d_model=256, de_d_model=128, d_k=64, d_v=64, dropout=0.1, tdnn_contexts=[[0]]):
+            en_layers=2, de_layers=2, n_head=3, en_d_model=256, de_d_model=128, d_k=64, d_v=64, en_dropout=0.2, de_dropout=0.2, tdnn_contexts=[[0]]):
 
         super(Transformer, self).__init__()
 
@@ -243,12 +244,11 @@ class Transformer(nn.Module):
             n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, sub_sequence=(-100,0),
             n_layers=en_layers, n_head=n_head, d_model=en_d_model, d_inner_hid=en_d_model, dropout=dropout)
         '''
-        self.decoder = Decoder(
-            n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
-            n_layers=de_layers, n_head=n_head, en_d_model=en_d_model, de_d_model=de_d_model ,d_inner_hid=de_d_model, dropout=dropout)
 
-        self.encoder_test = EncoderTest(lda_mat=lda_mat, n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, d_model=en_d_model, dropout=dropout, contexts=tdnn_contexts)
+        self.encoder_test = EncoderTest(lda_mat=lda_mat, n_src_dim=n_src_dim * self.src_fold, encoder_max_len=encoder_max_len, d_model=en_d_model, dropout=en_dropout, contexts=tdnn_contexts)
 
+        self.decoder = Decoder(n_tgt_vocab=n_tgt_vocab, decoder_max_len=decoder_max_len, sub_sequence=(-20,0),
+            n_layers=de_layers, n_head=n_head, en_d_model=en_d_model, de_d_model=de_d_model ,d_inner_hid=de_d_model, dropout=de_dropout)
 
     def forward(self, src_seq, src_pad_mask, tgt_seq, tgt_pad_mask):
         #reshape the input and input mask: length/fold, dim*fold
