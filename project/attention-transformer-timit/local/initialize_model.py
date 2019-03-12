@@ -23,6 +23,7 @@ def str2tuple(str):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-read_feats_scp_file', required=True)
+    parser.add_argument('-lda_mat_file', required=True) # the lda mat is generated from kaldi traditional trainning
     parser.add_argument('-read_vocab_file', required=True)
 
     parser.add_argument('-encoder_max_len', type=int, required=True)
@@ -38,7 +39,8 @@ def main():
     parser.add_argument('-de_d_model', type=int, default=128)
     parser.add_argument('-d_k', type=int, default=64)
     parser.add_argument('-d_v', type=int, default=64)
-    parser.add_argument('-dropout', type=float, default=0.1)
+    parser.add_argument('-en_dropout', type=float, default=0.2)
+    parser.add_argument('-de_dropout', type=float, default=0.2)
 
     parser.add_argument('-save_model_file', required=True)
     opt = parser.parse_args()
@@ -64,7 +66,7 @@ def main():
 
     print('[INFO] model will initialized with add_argument:\n\t{}.'.format(opt))
 
-    lda_mat = kaldi_io.read_mat('data/lda.mat')
+    lda_mat = kaldi_io.read_mat(opt.lda_mat_file)
     model = Transformer(
         opt.src_dim,
         opt.tgt_vocab_dim,
@@ -81,7 +83,8 @@ def main():
         de_d_model=opt.de_d_model,
         d_k=opt.d_k,
         d_v=opt.d_v,
-        dropout=opt.dropout,
+        en_dropout=opt.en_dropout,
+        de_dropout=opt.de_dropout,
         tdnn_contexts=opt.tdnn_contexts)
 
     checkpoint = {
