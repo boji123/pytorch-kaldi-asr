@@ -18,17 +18,15 @@ class ConcatLayer(nn.Module):
             self.pad_end = 0
 
     def forward(self, x):
+        bacth = x.shape[0]
         frame = x.shape[1]
+        dim = x.shape[2]
+
         pad_data = F.pad(x,(0,0,self.pad_head,self.pad_end),'constant', 0)
-
-        i = self.index[0]
-
-        cat_data = pad_data[:,i+self.pad_head:i+self.pad_head+frame,:]
-        if len(self.index) > 2:
-            for i in self.index[1:]:
-                cat_data = torch.cat((cat_data,pad_data[:,i+self.pad_head:i+self.pad_head+frame,:]),2)
-
+        cat_data_list = [pad_data[:,self.index[i]+self.pad_head:self.index[i]+self.pad_head+frame,:] for i in range(len(self.index))]
+        cat_data = torch.cat(cat_data_list,2)
         return cat_data
+
 
 class TDNNLayer(nn.Module):
     """docstring for TDNNLayer"""
