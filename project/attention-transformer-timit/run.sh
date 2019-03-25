@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_lda700_origin
+model_suffix=_smooth_drop0.30
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -78,7 +78,7 @@ if [ $stage -le 3 ]; then
         -decoder_max_len 100 \
         -src_fold 1 \
         -encoder_sub_sequence '(-100,0)' \
-        -decoder_sub_sequence '(-10,0)' \
+        -decoder_sub_sequence '(-20,0)' \
         \
         -en_layers 3 \
         -de_layers 2 \
@@ -138,7 +138,7 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 5 ]; then
-    #model_dir=exp/model_20190312-091037_lda
+    #model_dir=exp/model_20190321-223802_smooth_drop0.30
     model_file=`ls ${model_dir}/combine*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
