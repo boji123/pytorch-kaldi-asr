@@ -55,28 +55,39 @@ def initialize_batch_loader(read_feats_scp_file, read_text_file, read_vocab_file
     return batch_loader
 
 
-def get_performance(crit, pred, goal, smoothing=False, num_class=None):
-    '''
-    # TODO: Add smoothing
-    if smoothing:
-        assert bool(num_class)
-        eps = 0.1
-        goal = goal * (1 - eps) + (1 - goal) * eps / num_class
-        raise NotImplementedError
-        #seq_logit.view(-1, seq_logit.size(2))
-    '''
-
+def get_performance(crit, pred, goal, smoothing=True, num_class=None):
     # batch * length * vocab
     pred = pred.contiguous().view(-1,pred.size()[2])
     goal = goal.contiguous().view(-1)
 
-    loss = crit(pred, goal)
+    loss = cal_loss(pred, goal, smoothing)
 
     pred = pred.max(1)[1]
     n_correct = pred.data.eq(goal.data)
     n_correct = n_correct.masked_select(goal.ne(constants.PAD).data).sum()
 
     return loss, n_correct
+
+
+def cal_loss(pred, goal, smoothing):
+    ''' Calculate cross entropy loss, apply label smoothing if needed. '''
+    goal = goal.contiguous().view(-1)
+
+    if smoothing:
+        eps = 0.1
+        n_class = pred.size(1)
+
+        one_hot = torch.zeros_like(pred).scatter(1, goal.view(-1, 1), 1)
+        one_hot = one_hot * (1 - eps) + (1 - one_hot) * eps / (n_class - 1)
+        log_prb = nn.functional.log_softmax(pred, dim=1)
+
+        non_pad_mask = goal.ne(constants.PAD)
+        loss = -(one_hot * log_prb).sum(dim=1)
+        loss = loss.masked_select(non_pad_mask).sum()  # average later
+    else:
+        loss = nn.functional.cross_entropy(pred, goal, ignore_index=constants.PAD, reduction='sum')
+
+    return loss
 
 
 #for robust training, use this function to generate error sequence, in case error result spreading
@@ -175,8 +186,11 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
             tgt_seq = replace_sequence_error(tgt_seq, tgt_pad_mask, pred_sequence, seq_error_prob)
             pred = model(src_seq, src_pad_mask, tgt_seq, tgt_pad_mask) #replace the pred result
         #----------------------------------------------------------------------------------
-
-        loss, n_correct = get_performance(crit, pred, goal)
+        if mode == 'train':
+            smoothing = True
+        else:
+            smoothing = False
+        loss, n_correct = get_performance(crit, pred, goal, smoothing=smoothing)
 
         if mode == 'train':
             loss.backward()
