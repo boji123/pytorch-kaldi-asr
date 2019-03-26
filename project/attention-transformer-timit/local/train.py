@@ -190,6 +190,7 @@ def train_epoch(model, batch_loader, crit, mode = 'train', optimizer = None, bat
             smoothing = True
         else:
             smoothing = False
+        smoothing = False
         loss, n_correct = get_performance(crit, pred, goal, smoothing=smoothing)
 
         if mode == 'train':
