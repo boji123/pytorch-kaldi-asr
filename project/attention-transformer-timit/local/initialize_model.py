@@ -75,7 +75,7 @@ def main():
         decoder_max_len=opt.decoder_max_len,
         src_fold=opt.src_fold,
         encoder_sub_sequence=(-100,0),
-        decoder_sub_sequence=(-20,0),
+        decoder_sub_sequence=opt.decoder_sub_sequence,
         en_layers=opt.en_layers,
         de_layers=opt.de_layers,
         n_head=opt.n_head,
