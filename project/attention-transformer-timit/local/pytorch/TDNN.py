@@ -34,7 +34,7 @@ class TDNNLayer(nn.Module):
         super(TDNNLayer, self).__init__()
         self.concat = ConcatLayer(index)
         self.proj = nn.Linear(d_input*len(index), d_output, bias=True)
-        #init.xavier_normal_(self.proj.weight)
+        init.xavier_normal_(self.proj.weight)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
 
