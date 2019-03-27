@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_smooth_drop0.30
+model_suffix=_layer4head2
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -27,7 +27,7 @@ cmvn=true
 
 if [ $stage -le 0 ]; then
     echo '[PROCEDURE] preparing instances.'
-    max_len=700
+    max_len=500
     for dataset in train${speed_perturb}${data_perfix} dev${data_perfix} test${data_perfix}; do
         #feat-to-len is a kaldi src file, you need to export the path
         feat-to-len scp:data/$dataset/feats.scp ark,t:data/$dataset/feats.length
@@ -74,21 +74,21 @@ if [ $stage -le 3 ]; then
         -save_model_file ${model_dir}/model.init \
         -lda_mat_file data/lda.mat \
         \
-        -encoder_max_len 700 \
+        -encoder_max_len 500 \
         -decoder_max_len 100 \
         -src_fold 1 \
         -encoder_sub_sequence '(-100,0)' \
         -decoder_sub_sequence '(-20,0)' \
         \
         -en_layers 3 \
-        -de_layers 2 \
+        -de_layers 4 \
         -n_head 2 \
         -en_d_model 256 \
         -de_d_model 128 \
         -d_k 64 \
         -d_v 64 \
-        -en_dropout 0.3 \
-        -de_dropout 0.3
+        -en_dropout 0.35 \
+        -de_dropout 0.35
 fi
 #model_dir=exp/model_20190228-135310_error
 if [ $stage -le 4 ]; then
@@ -138,7 +138,7 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 5 ]; then
-    #model_dir=exp/model_20190321-223802_smooth_drop0.30
+    #model_dir=exp/model_20190326-220700_layer3head6_drop0.35
     model_file=`ls ${model_dir}/combine*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
@@ -157,9 +157,9 @@ if [ $stage -le 5 ]; then
                 -read_vocab_file ${lang}/vocab.txt \
                 -load_model_file ${model_file} \
                 -max_token_seq_len 100 \
-                -batch_size 16 \
-                -beam_size 30 \
-                -nbest 15\
+                -batch_size 8 \
+                -beam_size 25 \
+                -nbest 10\
                 -save_result_file ${decode_dir}/decode.txt\
                 -use_gpu || exit 1
         else
