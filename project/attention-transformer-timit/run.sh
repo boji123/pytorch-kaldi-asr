@@ -16,7 +16,7 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_layer4head2
+model_suffix=_layer6head2drop0.35_sub10
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
@@ -27,7 +27,7 @@ cmvn=true
 
 if [ $stage -le 0 ]; then
     echo '[PROCEDURE] preparing instances.'
-    max_len=500
+    max_len=700
     for dataset in train${speed_perturb}${data_perfix} dev${data_perfix} test${data_perfix}; do
         #feat-to-len is a kaldi src file, you need to export the path
         feat-to-len scp:data/$dataset/feats.scp ark,t:data/$dataset/feats.length
@@ -74,14 +74,14 @@ if [ $stage -le 3 ]; then
         -save_model_file ${model_dir}/model.init \
         -lda_mat_file data/lda.mat \
         \
-        -encoder_max_len 500 \
+        -encoder_max_len 700 \
         -decoder_max_len 100 \
         -src_fold 1 \
         -encoder_sub_sequence '(-100,0)' \
-        -decoder_sub_sequence '(-20,0)' \
+        -decoder_sub_sequence '(-10,0)' \
         \
         -en_layers 3 \
-        -de_layers 4 \
+        -de_layers 6 \
         -n_head 2 \
         -en_d_model 256 \
         -de_d_model 128 \
