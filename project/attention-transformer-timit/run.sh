@@ -16,18 +16,18 @@ use_gpu=true
 clean_dir=true
 cuda_device=0,1,2,3
 stage=3
-model_suffix=_layer6head2drop0.35_sub10
+model_suffix=_layer4head2mllr_drop0.35
 #------------------------------------------------------------
 #data_perfix=
 data_perfix=_hires
 #speed_perturb=
 speed_perturb=_sp
 lang=data/language
-cmvn=true
+cmvn=false
 
 if [ $stage -le 0 ]; then
     echo '[PROCEDURE] preparing instances.'
-    max_len=700
+    max_len=500
     for dataset in train${speed_perturb}${data_perfix} dev${data_perfix} test${data_perfix}; do
         #feat-to-len is a kaldi src file, you need to export the path
         feat-to-len scp:data/$dataset/feats.scp ark,t:data/$dataset/feats.length
@@ -74,14 +74,14 @@ if [ $stage -le 3 ]; then
         -save_model_file ${model_dir}/model.init \
         -lda_mat_file data/lda.mat \
         \
-        -encoder_max_len 700 \
+        -encoder_max_len 500 \
         -decoder_max_len 100 \
         -src_fold 1 \
         -encoder_sub_sequence '(-100,0)' \
         -decoder_sub_sequence '(-10,0)' \
         \
         -en_layers 3 \
-        -de_layers 6 \
+        -de_layers 3 \
         -n_head 2 \
         -en_d_model 256 \
         -de_d_model 128 \
@@ -105,7 +105,7 @@ if [ $stage -le 4 ]; then
             -seq_error_prob 0 \
             -optim_start_lr 0.001 \
             -optim_soft_coefficient 25000 \
-            -epoch 600 \
+            -epoch 500 \
             -batch_size 100 \
             -save_model_dir $model_dir \
             -save_interval 1 \
@@ -138,7 +138,7 @@ fi
 #decode & rescore
 #------------------------------------------------------------
 if [ $stage -le 5 ]; then
-    #model_dir=exp/model_20190326-220700_layer3head6_drop0.35
+    #model_dir=exp/model_20190401-224137_layer4head2mllr_drop0.35
     model_file=`ls ${model_dir}/combine*`
     if [ ! -f "${model_file}" ]; then
       echo "${model_file} is not a file."
