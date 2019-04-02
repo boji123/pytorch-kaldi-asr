@@ -78,3 +78,23 @@ class vFSMNLayer(nn.Module):
         outputs = self.relu(outputs)
         outputs = self.dropout(outputs)
         return outputs
+
+
+class ConvLayer(nn.Module):
+    def __init__(self, tstep, fstep):
+        super(ConvLayer, self).__init__()
+        self.tstep = tstep
+        self.fstep = fstep
+        self.conv = nn.Conv2d(in_channels=1,out_channels=1,kernel_size=(tstep,fstep))
+        init.xavier_normal_(self.conv.weight)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        output = F.pad(x,(self.fstep-1,0,self.tstep-1,0),'constant', 0)
+        output = output.view(output.size()[0],1,output.size()[1],output.size()[2])
+        #input batch * 1(channel) * pad+len * pad+dim
+        #filter 1(num) * 1(channel) * tstep * fstep
+        output = self.conv(output)
+        output = output.squeeze()
+        output = self.relu(output)
+        return output
