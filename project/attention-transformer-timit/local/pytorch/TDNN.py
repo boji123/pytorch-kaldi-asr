@@ -53,3 +53,28 @@ class LDALayer(nn.Module):
     def forward(self, x):
         output = x.matmul(self.weight) + self.bias
         return output
+
+
+class vFSMNLayer(nn.Module):
+    def __init__(self, dim, index, dropout=0):
+        super(vFSMNLayer, self).__init__()
+        self.concat = ConcatLayer(index)
+        self.memory = nn.Parameter(torch.FloatTensor(len(index) * dim), requires_grad=True)
+        self.proj = nn.Linear(dim*2, dim, bias=True)
+        init.xavier_normal_(self.proj.weight)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        size = x.size()
+        #vectorized memory
+        outputs = self.concat(x)
+        outputs = self.memory.mul(outputs)
+        outputs = outputs.view(size[0],size[1],-1,size[2])
+        outputs = outputs.sum(2)
+        #product
+        outputs = torch.cat([outputs,x],2)
+        outputs = self.proj(outputs)
+        outputs = self.relu(outputs)
+        outputs = self.dropout(outputs)
+        return outputs
